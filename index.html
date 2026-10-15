@@ -68,22 +68,26 @@ input.in:focus{border-color:var(--accent)}
 /* cards */
 .card{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;
   border-radius:6px;width:30px;height:42px;font-weight:900;font-size:16px;line-height:1;box-shadow:0 1px 0 rgba(0,0,0,.4)}
-.card i{font-style:normal;font-size:13px;margin-top:2px}
+.card i{font-style:normal;font-size:16px;margin-top:2px}
 .card.su-s{color:var(--s)}.card.su-h{color:var(--h)}.card.su-d{color:var(--d)}.card.su-c{color:var(--c)}
 .card.back{background:repeating-linear-gradient(45deg,#2b3a4a 0 4px,#223040 4px 8px);border:1px solid #3a4b5d}
 .card.lg{width:72px;height:100px;font-size:38px;border-radius:12px}
 .card.lg i{font-size:30px;margin-top:4px}
-.card.sm{width:24px;height:33px;font-size:13px;border-radius:5px}
-.card.sm i{font-size:10px;margin-top:1px}
+.card.sm{width:27px;height:38px;font-size:14px;border-radius:5px}
+.card.sm i{font-size:14px;margin-top:1px}
+.card.md{width:44px;height:62px;font-size:22px;border-radius:8px}
+.card.md i{font-size:22px;margin-top:2px}
+.card.empty{background:transparent;border:2px dashed #3a4b5d;box-shadow:none;color:var(--sub);font-size:10px;font-weight:700}
 .cards{display:inline-flex;gap:4px}
 .cards.lg{gap:10px}
 
 /* picker */
 .picker .pgrid{display:grid;gap:4px}
-.picker .prow{display:grid;grid-template-columns:repeat(13,1fr);gap:3px}
-.pc{height:46px;border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-weight:900;font-size:clamp(13px,3.9vw,17px);line-height:1;border:2px solid transparent}
-.pc i{font-style:normal;font-size:clamp(9px,2.8vw,12px);margin-top:2px}
+.picker .prow{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:2px}
+.pc{height:58px;border-radius:7px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:900;font-size:clamp(13px,4vw,18px);line-height:1;border:2px solid transparent;padding:0;min-width:0;overflow:hidden}
+.pc i{font-style:normal;font-size:clamp(16px,5vw,22px);margin-top:3px;line-height:1}
+.pc:disabled{opacity:.18}
 .pc:active{transform:scale(.92)}
 .prow.s-s .pc{color:var(--s)}.prow.s-h .pc{color:var(--h)}.prow.s-d .pc{color:var(--d)}.prow.s-c .pc{color:var(--c)}
 .prow.s-h .pc{background:#fff0f1}.prow.s-d .pc{background:#eef4ff}.prow.s-c .pc{background:#ecfbf3}
@@ -97,6 +101,31 @@ input.in:focus{border-color:var(--accent)}
 .tier.N{background:var(--N);color:#fff}.tier.R{background:var(--R);color:#fff}.tier.Y{background:var(--Y);color:#2a2000}
 .tier.G{background:var(--G);color:#fff}.tier.B{background:var(--B);color:#062233}.tier.W{background:#fff;color:#111}.tier.F{background:var(--F);color:#e5e9ed}
 .folded-banner{background:#2a2410;border:1px solid #5a4a14;color:#ffd77a;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+
+/* spectator */
+body.spectating{background:radial-gradient(120% 60% at 50% 0%,#24113d 0%,var(--bg) 60%) fixed}
+body.spectating .panel{border-color:#3b2a5c}
+.spec-bar{position:sticky;top:calc(env(safe-area-inset-top) + 4px);z-index:15;margin:-2px 0 12px;padding:10px 14px;border-radius:14px;
+  display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.06em;color:#fff;
+  background:linear-gradient(#1a1030,#1a1030) padding-box,linear-gradient(90deg,#ff2d95,#a64dff,#22e4ff) border-box;
+  border:2px solid transparent;box-shadow:0 0 18px rgba(166,77,255,.45)}
+.spec-bar .eye{font-size:20px}
+.spec-bar b{white-space:nowrap}
+.spec-bar small{font-weight:700;letter-spacing:0;color:#cdb8ff;font-size:11px;margin-left:auto;text-align:right;line-height:1.35}
+/* board / equity */
+.board{display:flex;gap:6px;align-items:flex-end;margin-bottom:10px}
+.board .gap{width:6px}
+.board .lbl{font-size:10px;color:var(--sub);text-align:center;margin-top:3px}
+.eq{display:grid;gap:8px}
+.eqr{display:flex;align-items:center;gap:10px}
+.eqr .nm{width:76px;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eqr .nm small{display:block;color:var(--sub);font-weight:600;font-size:11px}
+.eqr .bw{flex:1}
+.eqr .pct{width:62px;text-align:right;font-weight:900;font-size:19px;font-variant-numeric:tabular-nums}
+.eqbar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden;margin-top:4px}
+.eqbar div{height:100%;background:linear-gradient(90deg,#a64dff,#22e4ff)}
+.eqr.lead .pct{color:#7ff0ff}
+.eqr.lead .eqbar div{background:linear-gradient(90deg,#ff2d95,#ffb020)}
 
 /* players */
 .pl{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
@@ -178,18 +207,21 @@ video.scan{width:100%;border-radius:14px;background:#000;aspect-ratio:1;object-f
 // =====================================================================
 //  設定は config.js に書きます（index.html を差し替えても消えません）
 // =====================================================================
-const CFG = window.POKER_CONFIG || {};
-const cleanCfg = v => String(v || "").replace(/[\s\u3000\u200B\uFEFF"'“”‘’]/g, "");
-const SUPABASE_URL = cleanCfg(CFG.url).replace(/\/+$/, "");
-const SUPABASE_ANON_KEY = cleanCfg(CFG.key);
-let configError = null;
-if(!window.POKER_CONFIG) configError = "config.js が見つかりません。GitHubに config.js をアップロードしてください";
-else if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL)) configError = "config.js の url が正しくありません（https://〇〇.supabase.co の形）";
-else if(SUPABASE_ANON_KEY.length < 20 || !/^[\x21-\x7e]+$/.test(SUPABASE_ANON_KEY)) configError = "config.js の key が正しくありません。日本語や全角文字が残っていないか確認してください";
-
-const sb = configError ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-});
+let sb = null, configError = null, SUPABASE_URL = "", SUPABASE_ANON_KEY = "";
+async function loadConfig(){
+  const CFG = window.POKER_CONFIG;
+  const clean = v => String(v || "").replace(/[\s\u3000\u200B\uFEFF"'“”‘’]/g, "");
+  if(!CFG){ configError = "config.js が見つかりません。index.html と同じ場所に config.js をアップロードしてください"; return; }
+  SUPABASE_URL = clean(CFG.url).replace(/\/+$/, "").toLowerCase();
+  SUPABASE_ANON_KEY = clean(CFG.key);
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL)){ configError = "config.js の url が正しくありません（https://〇〇.supabase.co の形）"; return; }
+  if(SUPABASE_ANON_KEY.length < 20 || !/^[\x21-\x7e]+$/.test(SUPABASE_ANON_KEY)){ configError = "config.js の key が正しくありません。日本語や全角文字が残っていないか確認してください"; return; }
+  try{
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
+  }catch(e){ configError = "Supabaseの準備に失敗しました：" + e.message; }
+}
 
 // ---------- 定数 ----------
 const RANKS = "AKQJT98765432".split("");
@@ -212,7 +244,9 @@ const ERR = {
   NAME_TAKEN:"その名前は登録済みです。一覧から選んでください", NAME_EMPTY:"名前を入力してください",
   NO_PLAYER:"プレイヤーを選んでください", NO_CARDS:"先に手札を入力してください",
   BAD_CARD:"カードが正しくありません", BAD_AMOUNT:"金額が正しくありません",
-  NOT_YET:"今日のセッションは翌日から見られます"
+  NOT_YET:"今日のセッションは翌日から見られます",
+  NOT_SPECTATOR:"ボードは観戦中（降りた人・観戦モード）の人だけ入力できます",
+  NO_HAND:"まだハンドが始まっていません", BAD_BOARD:"ボードのカードが正しくありません"
 };
 
 // ---------- 状態 ----------
@@ -225,6 +259,8 @@ let mode = null;            // null / "next"（次のハンド入力） / "fix"�
 let chartPos = null;
 let pendingRender = false;
 let busy = false;
+let boardEdit = false;                    // ボード入力中
+const draft = { buy: 0, chip: null };     // 入金・チップ入力欄の下書き
 
 // ---------- ユーティリティ ----------
 const $ = s => document.querySelector(s);
@@ -317,6 +353,7 @@ function render(){
   else if(screen === "gate") app.innerHTML = gateHTML();
   else if(screen === "select") app.innerHTML = selectHTML();
   else app.innerHTML = mainHTML();
+  document.body.classList.toggle("spectating", screen === "main" && !!S?.spectator);
   if(screen === "select") loadPlayers();
   if(screen === "main" && tab === "stats") loadStats();
 }
@@ -448,6 +485,7 @@ function mainHTML(){
       <div class="who"><b>${esc(me?.name)}</b><br>${S.day}</div>
       <button class="menu" onclick="openMenu()">⋯</button>
     </div>
+    ${S.spectator ? `<div class="spec-bar"><span class="eye">👁</span><b>観戦モード</b><small>${S.sitting_out ? "ハンドに不参加" : "フォールド中"}<br>全員の手札が見えています</small></div>` : ""}
     ${body}
     <nav class="tabs">
       ${[["table","🂠","テーブル"],["chips","◎","チップ"],["stats","▤","成績"],["chart","▦","チャート"]]
@@ -458,12 +496,12 @@ function setTab(t){ tab = t; mode = null; pick = []; window.scrollTo(0,0); rende
 
 // ----- テーブル -----
 function tableHTML(){
-  return handPanelHTML() + playersHTML();
+  return handPanelHTML() + (S.spectator && S.hand_no ? boardHTML() : "") + playersHTML();
 }
 function handPanelHTML(){
   if(S.sitting_out && !mode){
     return `<div class="panel"><div class="ptitle">観戦中<span class="sp"></span></div>
-      <p class="sub" style="margin-bottom:12px">ハンドに参加していないので、全員の手札が見えます</p>
+      <p class="sub" style="margin-bottom:12px">ハンドに参加していないので、全員の手札が見えます。ボードを入れると勝率が出ます</p>
       <button class="btn primary big" onclick="mode='next';render()">ハンドに戻る（手札を入力）</button></div>`;
   }
   const has = !!S.my_c1;
@@ -475,7 +513,6 @@ function handPanelHTML(){
   const folded = S.my_folded;
   return `<div class="panel mine">
     <div class="ptitle">ハンド #${S.hand_no}<span class="sp"></span>${tierBadge(S.my_c1, S.my_c2)}</div>
-    ${folded ? `<div class="folded-banner">フォールド中：全員の手札が見えています</div>` : ""}
     <div class="bigwrap"><div class="cards lg">${card(S.my_c1,"lg")}${card(S.my_c2,"lg")}</div>
       <div style="flex:1;display:grid;gap:8px">
         <button class="btn ${folded?"":"danger"}" onclick="act('poker_fold',{p_folded:${!folded}})">${folded?"フォールド取消":"フォールド"}</button>
@@ -491,11 +528,14 @@ function pickerHTML(title){
       ${mode ? `<button class="btn sm" onclick="mode=null;pick=[];render()">閉じる</button>` : ""}</div>
     <div class="psel"><div class="cards">${slots}</div>
       <span class="hint">${pick.length === 1 ? "あと1枚" : "1枚目をタップ"}</span></div>
-    <div class="pgrid">${SUITS.map(s => `<div class="prow s-${s}">${RANKS.map(r => {
-      const c = r + s;
-      return `<button class="pc ${pick.includes(c)?"on":""}" onclick="tapCard('${c}')">${r}<i>${SYM[s]}</i></button>`;
-    }).join("")}</div>`).join("")}</div>
+    ${cardGridHTML(pick, [], "tapCard")}
   </div>`;
+}
+function cardGridHTML(selected, disabled, fn){
+  return `<div class="pgrid">${SUITS.map(s => `<div class="prow s-${s}">${RANKS.map(r => {
+    const c = r + s, dis = disabled.includes(c) && !selected.includes(c);
+    return `<button class="pc ${selected.includes(c)?"on":""}" ${dis?"disabled":""} onclick="${fn}('${c}')">${r}<i>${SYM[s]}</i></button>`;
+  }).join("")}</div>`).join("")}</div>`;
 }
 function tapCard(c){
   const i = pick.indexOf(c);
@@ -521,6 +561,141 @@ async function submitHand(c1, c2){
   const ok = await act(fn, { p_c1: c1, p_c2: c2 });
   if(!ok){ S = prev; render(); }
 }
+// ----- ボードと勝率（観戦者だけ） -----
+function boardHTML(){
+  const b = S.board || [];
+  const labels = ["フロップ","","","ターン","リバー"];
+  const slots = [0,1,2,3,4].map(i => `${i===3||i===4?'<span class="gap"></span>':''}<div>${b[i] ? card(b[i],"md") : `<span class="card md empty">${i<3?"F":i===3?"T":"R"}</span>`}<div class="lbl">${labels[i]||"&nbsp;"}</div></div>`).join("");
+  const street = b.length === 0 ? "プリフロップ" : b.length >= 3 ? ["","","","フロップ","ターン","リバー"][b.length] : "";
+  const eq = equityHTML();
+  return `<div class="panel">
+    <div class="ptitle">ボード<span class="sp"></span><small>${street}</small>
+      <button class="btn sm" onclick="boardEdit=!boardEdit;render()">${boardEdit ? "閉じる" : b.length ? "編集" : "入力"}</button></div>
+    <div class="board">${slots}</div>
+    ${boardEdit ? `<div class="picker" style="margin-bottom:12px">
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn sm" onclick="boardUndo()" ${b.length?"":"disabled"}>1枚戻す</button>
+          <button class="btn sm" onclick="boardClear()" ${b.length?"":"disabled"}>全部消す</button>
+        </div>
+        ${cardGridHTML(b, usedCards(), "tapBoard")}
+        <p class="sub" style="margin-top:6px">フロップは3枚続けてタップ。入れた内容は観戦中の全員に共有されます</p>
+      </div>` : ""}
+    ${eq}
+  </div>`;
+}
+function usedCards(){
+  const u = [];
+  (S.players || []).forEach(p => { if(p.c1) u.push(p.c1); if(p.c2) u.push(p.c2); });
+  return u.concat(S.board || []);
+}
+let boardSaveT = null;
+function tapBoard(c){
+  const b = [...(S.board || [])];
+  const i = b.indexOf(c);
+  if(i >= 0) b.splice(i, 1); else if(b.length < 5) b.push(c); else return toast("ボードは5枚までです");
+  S.board = b; if(b.length === 5) boardEdit = false;
+  render(); queueBoardSave();
+}
+function boardUndo(){ S.board = (S.board || []).slice(0, -1); render(); queueBoardSave(); }
+function boardClear(){ S.board = []; render(); queueBoardSave(); }
+function queueBoardSave(){ clearTimeout(boardSaveT); boardSaveT = setTimeout(saveBoard, 350); }
+async function saveBoard(){
+  const sent = JSON.stringify(S.board || []);
+  try{
+    const r = await rpc("poker_set_board", { p_token: auth.token, p_board: S.board || [] });
+    if(JSON.stringify(S.board || []) === sent){ S = r; render(); }
+    ping();
+  }catch(e){ toast(e.message); refresh(); }
+}
+
+// 勝率計算（7枚から最強の5枚を評価）
+const RV = {A:14,K:13,Q:12,J:11,T:10,"9":9,"8":8,"7":7,"6":6,"5":5,"4":4,"3":3,"2":2};
+const SI = {s:0,h:1,d:2,c:3};
+const toInt = c => (RV[c[0]] << 2) | SI[c[1]];
+function straightHi(mask){
+  if(mask & (1 << 14)) mask |= 2;
+  for(let hi = 14; hi >= 5; hi--) if(((mask >> (hi - 4)) & 31) === 31) return hi;
+  return 0;
+}
+function topBits(mask, n){ const out = []; for(let r = 14; r >= 2 && out.length < n; r--) if(mask & (1 << r)) out.push(r); return out; }
+function enc(cat, ks){ let v = cat; for(let i = 0; i < 5; i++) v = v * 16 + (ks[i] || 0); return v; }
+function evaluate(cards){
+  const cnt = new Array(15).fill(0), sm = [0,0,0,0], sc = [0,0,0,0];
+  let all = 0;
+  for(const c of cards){ const r = c >> 2, s = c & 3; cnt[r]++; sm[s] |= 1 << r; sc[s]++; all |= 1 << r; }
+  for(let s = 0; s < 4; s++) if(sc[s] >= 5){
+    const sh = straightHi(sm[s]);
+    if(sh) return enc(8, [sh]);
+    var flush = topBits(sm[s], 5);
+  }
+  const quads = [], trips = [], pairs = [];
+  for(let r = 14; r >= 2; r--){ if(cnt[r] === 4) quads.push(r); else if(cnt[r] === 3) trips.push(r); else if(cnt[r] === 2) pairs.push(r); }
+  if(quads.length) return enc(7, [quads[0], topBits(all & ~(1 << quads[0]), 1)[0]]);
+  if(trips.length && (trips.length > 1 || pairs.length)) return enc(6, [trips[0], trips.length > 1 ? trips[1] : pairs[0]]);
+  if(flush) return enc(5, flush);
+  const st = straightHi(all); if(st) return enc(4, [st]);
+  if(trips.length) return enc(3, [trips[0], ...topBits(all & ~(1 << trips[0]), 2)]);
+  if(pairs.length >= 2) return enc(2, [pairs[0], pairs[1], topBits(all & ~(1 << pairs[0]) & ~(1 << pairs[1]), 1)[0]]);
+  if(pairs.length) return enc(1, [pairs[0], ...topBits(all & ~(1 << pairs[0]), 3)]);
+  return enc(0, topBits(all, 5));
+}
+const CAT_NAME = ["ハイカード","ワンペア","ツーペア","スリーカード","ストレート","フラッシュ","フルハウス","フォーカード","ストレートフラッシュ"];
+let eqCache = { key: "", res: null };
+function calcEquity(hands, board, dead){
+  const used = new Set([...hands.flat(), ...board, ...dead]);
+  const deck = []; for(let i = 0; i < 52; i++){ const c = ((i >> 2) + 2) << 2 | (i & 3); if(!used.has(c)) deck.push(c); }
+  const need = 5 - board.length, n = hands.length;
+  const win = new Array(n).fill(0), tie = new Array(n).fill(0), eqs = new Array(n).fill(0);
+  let total = 0;
+  const run = extra => {
+    const bd = board.concat(extra);
+    let best = -1, who = [];
+    for(let i = 0; i < n; i++){
+      const v = evaluate(hands[i].concat(bd));
+      if(v > best){ best = v; who = [i]; } else if(v === best) who.push(i);
+    }
+    if(who.length === 1) win[who[0]]++; else who.forEach(i => tie[i]++);
+    who.forEach(i => eqs[i] += 1 / who.length);
+    total++;
+  };
+  if(need === 0) run([]);
+  else if(need === 1) for(const a of deck) run([a]);
+  else if(need === 2){ for(let i = 0; i < deck.length; i++) for(let j = i + 1; j < deck.length; j++) run([deck[i], deck[j]]); }
+  else {
+    const iters = Math.max(4000, Math.floor(30000 / n)), d = deck.slice();
+    for(let k = 0; k < iters; k++){
+      for(let i = 0; i < need; i++){ const j = i + Math.floor(Math.random() * (d.length - i)); const t = d[i]; d[i] = d[j]; d[j] = t; }
+      run(d.slice(0, need));
+    }
+  }
+  return { win: win.map(v => v / total), tie: tie.map(v => v / total), eq: eqs.map(v => v / total), exact: need <= 2 };
+}
+function equityHTML(){
+  const b = S.board || [];
+  const act = (S.players || []).filter(p => p.entered && !p.folded && !p.sitting_out && p.c1 && p.c2);
+  if(act.length < 2) return `<p class="sub">勝負中のプレイヤーが2人以上いると勝率が出ます</p>`;
+  if(b.length === 1 || b.length === 2) return `<p class="sub">フロップは3枚まとめて入れてください</p>`;
+  const dead = (S.players || []).filter(p => p.folded && p.c1 && p.c2).flatMap(p => [p.c1, p.c2]);
+  const allC = act.flatMap(p => [p.c1, p.c2]).concat(b, dead);
+  const dup = allC.filter((c, i) => allC.indexOf(c) !== i);
+  if(dup.length) return `<p class="sub" style="color:var(--warn)">同じカード（${[...new Set(dup)].join(", ")}）が2回入力されています。入力ミスを直すと勝率が出ます</p>`;
+  const key = act.map(p => p.id + p.c1 + p.c2).join("|") + "/" + b.join("") + "/" + dead.join("");
+  if(eqCache.key !== key){
+    eqCache = { key, res: calcEquity(act.map(p => [toInt(p.c1), toInt(p.c2)]), b.map(toInt), dead.map(toInt)) };
+  }
+  const r = eqCache.res, lead = Math.max(...r.eq);
+  return `<div class="eq">${act.map((p, i) => {
+    const made = b.length >= 3 ? CAT_NAME[Math.floor(evaluate([toInt(p.c1), toInt(p.c2), ...b.map(toInt)]) / 1048576)] : "";
+    return `<div class="eqr ${r.eq[i] === lead ? "lead" : ""}">
+      <div class="nm">${esc(p.name)}<small>${made}</small></div>
+      <div class="cards">${card(p.c1,"sm")}${card(p.c2,"sm")}</div>
+      <div class="bw"><div class="eqbar"><div style="width:${(r.eq[i]*100).toFixed(1)}%"></div></div>
+        ${r.tie[i] > 0.0005 ? `<div class="sub" style="margin-top:2px">引分 ${(r.tie[i]*100).toFixed(1)}%</div>` : ""}</div>
+      <div class="pct">${(r.win[i]*100).toFixed(1)}%</div></div>`;
+  }).join("")}</div>
+  <p class="sub" style="margin-top:8px">${b.length === 5 ? "リバーまで出た時点の結果" : r.exact ? "残りの全パターンから計算" : "シミュレーションによる概算"}・降りた人の手札は山から除外済み</p>`;
+}
+
 function playersHTML(){
   const ps = S.players || [];
   const waiting = ps.filter(p => !p.sitting_out && !p.entered).length;
@@ -557,15 +732,18 @@ function chipsHTML(){
   <div class="panel">
     <div class="ptitle">入金を追加</div>
     <div class="chips" style="margin-bottom:10px">
-      ${[1000,2000,3000,5000,10000].map(v => `<button onclick="buyin(${v})">+${v.toLocaleString()}</button>`).join("")}
+      ${[1000,2000,3000,5000,10000].map(v => `<button onclick="addPreset(${v})">+${v.toLocaleString()}</button>`).join("")}
+      <button onclick="draft.buy=0;render()" style="color:var(--sub)">クリア</button>
     </div>
-    <div class="row"><input class="in" id="buyIn" onkeydown="if(event.key==='Enter')buyin(Number(this.value))" type="number" inputmode="numeric" placeholder="金額を入力">
-      <button class="btn primary" style="flex:0 0 80px" onclick="buyin(Number($('#buyIn').value))">追加</button></div>
+    <div class="row"><input class="in" id="buyIn" type="text" inputmode="numeric" autocomplete="off" placeholder="金額を入力"
+        value="${draft.buy ? draft.buy.toLocaleString("ja-JP") : ""}" oninput="moneyInput(this,'buy')" onkeydown="if(event.key==='Enter')buyin()">
+      <button class="btn primary" style="flex:0 0 80px" onclick="buyin()">追加</button></div>
     <button class="btn ghost sm" style="margin-top:8px" onclick="if(confirm('直前の入金を取り消しますか？'))act('poker_undo_buyin')">直前の入金を取り消す</button>
   </div>
   <div class="panel">
     <div class="ptitle">今のチップ数</div>
-    <div class="row"><input class="in" id="chipIn" onkeydown="if(event.key==='Enter')saveChips()" type="number" inputmode="numeric" placeholder="${me.chips ?? "例：12500"}">
+    <div class="row"><input class="in" id="chipIn" type="text" inputmode="numeric" autocomplete="off" placeholder="${me.chips != null ? yen(me.chips) : "例：12,500"}"
+        value="${draft.chip != null ? draft.chip.toLocaleString("ja-JP") : ""}" oninput="moneyInput(this,'chip')" onkeydown="if(event.key==='Enter')saveChips()">
       <button class="btn primary" style="flex:0 0 80px" onclick="saveChips()">保存</button></div>
     <p class="sub" style="margin-top:8px">いつ入力してもOK。最後に入れた数が収支計算に使われます</p>
   </div>
@@ -579,16 +757,29 @@ function chipsHTML(){
     }).join("")}
   </div>`;
 }
-async function buyin(v){
+// 入力しながら3桁区切りを付ける
+function moneyInput(el, key){
+  const digits = el.value.replace(/[^0-9]/g, "").replace(/^0+(?=\d)/, "");
+  if(key === "buy") draft.buy = digits ? Number(digits) : 0;
+  else draft.chip = digits ? Number(digits) : null;
+  const f = digits ? Number(digits).toLocaleString("ja-JP") : "";
+  if(el.value !== f){ el.value = f; try{ el.setSelectionRange(f.length, f.length); }catch(e){} }
+}
+function addPreset(v){
+  const el = $("#buyIn"); if(el) el.blur();
+  draft.buy = (draft.buy || 0) + v; render();
+}
+async function buyin(){
+  const v = draft.buy;
   if(!v) return toast("金額を入れてください");
-  const el = $("#buyIn"); if(el){ el.value = ""; el.blur(); }
-  if(await act("poker_buyin", { p_amount: v })) toast(`${v.toLocaleString()} 入金しました`);
+  const el = $("#buyIn"); if(el) el.blur();
+  if(await act("poker_buyin", { p_amount: v })){ draft.buy = 0; render(); toast(`${v.toLocaleString("ja-JP")} 入金しました`); }
 }
 async function saveChips(){
-  const el = $("#chipIn"), v = el.value.trim();
-  if(v === "") return toast("チップ数を入れてください");
-  el.blur();
-  if(await act("poker_chips", { p_chips: Number(v) })) toast("チップ数を保存しました");
+  const v = draft.chip;
+  if(v == null) return toast("チップ数を入れてください");
+  const el = $("#chipIn"); if(el) el.blur();
+  if(await act("poker_chips", { p_chips: v })){ draft.chip = null; render(); toast(`チップ数 ${v.toLocaleString("ja-JP")} を保存しました`); }
 }
 
 // ----- 成績 -----
@@ -690,7 +881,8 @@ async function openSession(id){
         <b class="${cls(r.profit)}">${signYen(r.profit)}</b></div>`).join("")}</div>
       <div class="ptitle">ハンド履歴<span class="sp"></span><small>薄い＝降り</small></div>
       ${d.hands.map(h => `<div class="hrow"><span class="n">#${h.n}</span><div class="who">${(h.c||[]).map(([n,c1,c2,f]) =>
-        `<span class="${f?"f":""}">${esc(n)} ${card(c1,"sm")}${card(c2,"sm")}</span>`).join("")}</div></div>`).join("") || `<p class="muted">ハンドなし</p>`}`);
+        `<span class="${f?"f":""}">${esc(n)} ${card(c1,"sm")}${card(c2,"sm")}</span>`).join("")}
+        ${(h.b||[]).length ? `<span style="width:100%;color:var(--sub)">ボード ${(h.b||[]).map(c => card(c,"sm")).join("")}</span>` : ""}</div></div>`).join("") || `<p class="muted">ハンドなし</p>`}`);
   }catch(e){ closeModal(); toast(e.message); }
 }
 
@@ -761,8 +953,10 @@ $("#modal").addEventListener("click", e => { if(e.target.id === "modal") closeMo
 // ---------- 起動 ----------
 (async function boot(){
   render();
+  await loadConfig();
   const j = new URLSearchParams(location.search).get("j");
   if(j) history.replaceState(null, "", location.pathname);
+  if(configError){ screen = "gate"; return render(); }
   if(auth?.token){
     try{
       S = await rpc("poker_state", { p_token: auth.token });
