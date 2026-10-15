@@ -14,6 +14,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="config.js"></script>
 <style>
 :root{
   --bg:#0b1015;--panel:#141c24;--panel2:#1b2530;--line:#273340;--text:#eef2f6;--sub:#8796a6;
@@ -175,12 +176,18 @@ video.scan{width:100%;border-radius:14px;background:#000;aspect-ratio:1;object-f
 
 <script>
 // =====================================================================
-//  設定：ボドゲスコアと同じ Supabase の URL と anon key を入れてください
+//  設定は config.js に書きます（index.html を差し替えても消えません）
 // =====================================================================
-const SUPABASE_URL = "https://xxxxxxxxxxxxxxxxxxxx.supabase.co";
-const SUPABASE_ANON_KEY = "ここに anon key を貼る";
+const CFG = window.POKER_CONFIG || {};
+const cleanCfg = v => String(v || "").replace(/[\s\u3000\u200B\uFEFF"'“”‘’]/g, "");
+const SUPABASE_URL = cleanCfg(CFG.url).replace(/\/+$/, "");
+const SUPABASE_ANON_KEY = cleanCfg(CFG.key);
+let configError = null;
+if(!window.POKER_CONFIG) configError = "config.js が見つかりません。GitHubに config.js をアップロードしてください";
+else if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL)) configError = "config.js の url が正しくありません（https://〇〇.supabase.co の形）";
+else if(SUPABASE_ANON_KEY.length < 20 || !/^[\x21-\x7e]+$/.test(SUPABASE_ANON_KEY)) configError = "config.js の key が正しくありません。日本語や全角文字が残っていないか確認してください";
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const sb = configError ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
 });
 
@@ -201,7 +208,7 @@ const POSITIONS = [
 const ERR = {
   LOGIN_EXPIRED:"ログインの期限が切れました。今日のQRを読み取ってください",
   CODE_INVALID:"QRが無効か、前の日のものです",
-  PIN_WRONG:"PINが違います", PIN_SHORT:"PINは4文字以上にしてください",
+  PIN_WRONG:"PINが違います", PIN_SHORT:"PINは3文字以上にしてください",
   NAME_TAKEN:"その名前は登録済みです。一覧から選んでください", NAME_EMPTY:"名前を入力してください",
   NO_PLAYER:"プレイヤーを選んでください", NO_CARDS:"先に手札を入力してください",
   BAD_CARD:"カードが正しくありません", BAD_AMOUNT:"金額が正しくありません",
@@ -228,15 +235,28 @@ const cls = n => n == null ? "muted" : n > 0 ? "plus" : n < 0 ? "minus" : "";
 const pct = (a,b) => b ? (a/b*100).toFixed(1) + "%" : "—";
 const hm = t => { if(!t) return ""; const d = new Date(t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2,"0"); };
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove("on"), 2200); }
+function netMsg(m){
+  if(/TypeError|Type error|Load failed|Failed to fetch|NetworkError/i.test(m || ""))
+    return "サーバーにつながりません。config.js の url / key と電波を確認してください";
+  return "通信エラー：" + (m || "");
+}
 function loadAuth(){ try{ return JSON.parse(localStorage.getItem("poker.auth")) }catch(e){ return null } }
 function saveAuth(a){ auth = a; try{ a ? localStorage.setItem("poker.auth", JSON.stringify(a)) : localStorage.removeItem("poker.auth") }catch(e){} }
 
 async function rpc(fn, args = {}){
-  const { data, error } = await sb.rpc(fn, args);
+  if(configError) throw new Error(configError);
+  let res;
+  try{ res = await sb.rpc(fn, args); }
+  catch(e){ throw new Error(netMsg(e.message)); }
+  const { data, error } = res;
   if(error){
-    const key = Object.keys(ERR).find(k => (error.message||"").includes(k));
+    const m = error.message || "";
+    const key = Object.keys(ERR).find(k => m.includes(k));
     if(key === "LOGIN_EXPIRED" && screen !== "loading"){ logout(true); }
-    throw new Error(key ? ERR[key] : "通信エラー：" + (error.message || ""));
+    if(key) throw new Error(ERR[key]);
+    if(/Could not find the function|schema cache|PGRST202/i.test(m + (error.code||""))) throw new Error("Supabaseで poker_schema.sql がまだ実行されていません");
+    if(/Invalid API key|JWT|apikey/i.test(m)) throw new Error("config.js の key が違います。ボドゲスコアと同じ anon key を入れてください");
+    throw new Error(netMsg(m));
   }
   return data;
 }
@@ -307,6 +327,7 @@ function gateHTML(){
   return `<div class="gate">
     <div class="logo">♠<span class="r">♥</span><span class="bl">♦</span><span class="g">♣</span></div>
     <h1>TEXAS HOLD'EM</h1>
+    ${configError ? `<div class="folded-banner" style="text-align:left;background:#3a1820;border-color:#6b2633;color:#ffb3bd">${esc(configError)}</div>` : ""}
     <p>ホストが表示している<br>今日のQRコードを読み取ってください</p>
     <button class="btn primary big" onclick="openScanner()">QRを読み取る</button>
     <div class="row"><input class="in" id="codeIn" onkeydown="if(event.key==='Enter')joinCode(this.value)" placeholder="コードを手入力" autocapitalize="characters" autocomplete="off">
@@ -324,7 +345,7 @@ async function joinCode(code){
 }
 function openHost(){
   openModal(`<h2>ホスト<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
-    <p class="sub" style="margin-bottom:10px">初めての時は、ここで入れたPINがそのまま登録されます（英数字・スペース可、4文字以上。大文字小文字・スペースも区別します）</p>
+    <p class="sub" style="margin-bottom:10px">英数字・スペース可。大文字小文字・前後の空白も含めて完全一致で照合します</p>
     <div style="position:relative;margin-bottom:8px">
       <input class="in" id="pinIn" type="password" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
         placeholder="ホストPIN（英数字・スペース可）" style="padding-right:56px" onkeydown="if(event.key==='Enter')hostOpen()">
