@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#0b1015">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>ポーカーナイト</title>
+<title>Texas Hold'em</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
@@ -306,7 +306,7 @@ document.addEventListener("focusout", () => setTimeout(() => { if(pendingRender)
 function gateHTML(){
   return `<div class="gate">
     <div class="logo">♠<span class="r">♥</span><span class="bl">♦</span><span class="g">♣</span></div>
-    <h1>POKER NIGHT</h1>
+    <h1>TEXAS HOLD'EM</h1>
     <p>ホストが表示している<br>今日のQRコードを読み取ってください</p>
     <button class="btn primary big" onclick="openScanner()">QRを読み取る</button>
     <div class="row"><input class="in" id="codeIn" onkeydown="if(event.key==='Enter')joinCode(this.value)" placeholder="コードを手入力" autocapitalize="characters" autocomplete="off">
