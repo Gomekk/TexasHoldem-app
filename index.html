@@ -201,7 +201,7 @@ const POSITIONS = [
 const ERR = {
   LOGIN_EXPIRED:"ログインの期限が切れました。今日のQRを読み取ってください",
   CODE_INVALID:"QRが無効か、前の日のものです",
-  PIN_WRONG:"PINが違います", PIN_SHORT:"PINは4桁以上にしてください",
+  PIN_WRONG:"PINが違います", PIN_SHORT:"PINは4文字以上にしてください",
   NAME_TAKEN:"その名前は登録済みです。一覧から選んでください", NAME_EMPTY:"名前を入力してください",
   NO_PLAYER:"プレイヤーを選んでください", NO_CARDS:"先に手札を入力してください",
   BAD_CARD:"カードが正しくありません", BAD_AMOUNT:"金額が正しくありません",
@@ -324,13 +324,18 @@ async function joinCode(code){
 }
 function openHost(){
   openModal(`<h2>ホスト<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
-    <p class="sub" style="margin-bottom:10px">初めての時は、ここで入れたPINがそのまま登録されます（4桁以上）</p>
-    <input class="in" id="pinIn" type="password" inputmode="numeric" placeholder="ホストPIN" style="margin-bottom:8px">
+    <p class="sub" style="margin-bottom:10px">初めての時は、ここで入れたPINがそのまま登録されます（英数字・スペース可、4文字以上。大文字小文字・スペースも区別します）</p>
+    <div style="position:relative;margin-bottom:8px">
+      <input class="in" id="pinIn" type="password" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+        placeholder="ホストPIN（英数字・スペース可）" style="padding-right:56px" onkeydown="if(event.key==='Enter')hostOpen()">
+      <button type="button" class="btn sm" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)"
+        onclick="const i=$('#pinIn');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'表示':'隠す'">表示</button>
+    </div>
     <input class="in" id="rateIn" type="number" inputmode="decimal" placeholder="1チップ＝何円？（空欄なら1円 or 前回のまま）" style="margin-bottom:12px">
     <button class="btn primary big" onclick="hostOpen()">今日の部屋を開く</button>`);
 }
 async function hostOpen(){
-  const pin = $("#pinIn").value.trim(), r = $("#rateIn").value.trim();
+  const pin = $("#pinIn").value, r = $("#rateIn").value.trim();
   try{
     const a = await rpc("poker_host_open", { p_pin: pin, p_rate: r ? Number(r) : null });
     saveAuth(a); closeModal(); screen = "select"; render();
