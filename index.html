@@ -102,6 +102,46 @@ input.in:focus{border-color:var(--accent)}
 .tier.G{background:var(--G);color:#fff}.tier.B{background:var(--B);color:#062233}.tier.W{background:#fff;color:#111}.tier.F{background:var(--F);color:#e5e9ed}
 .folded-banner{background:#2a2410;border:1px solid #5a4a14;color:#ffd77a;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px}
 
+/* icons */
+.ic{width:22px;height:22px;display:block}
+.spec-bar .ic{width:22px;height:22px;color:#cdb8ff}
+/* board slots */
+.bslot{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;cursor:pointer}
+.bslot.sel .card{outline:3px solid #22e4ff;outline-offset:2px}
+.bslot.swap .card{outline:3px dashed #ff2d95;outline-offset:2px;animation:wig .5s ease-in-out infinite alternate}
+@keyframes wig{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+.hintbar{background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px;font-size:12px;margin-bottom:10px}
+/* next game */
+.nextp{padding:12px}
+.nextp .btn{flex-direction:column;gap:2px;padding:14px}
+.nextp .btn small{font-size:12px;font-weight:700;opacity:.75}
+/* mini range chart */
+.hgrid.mini .hc{font-size:clamp(6px,1.9vw,9px);font-weight:700}
+.hgrid.mini .hc.dim{opacity:.5}
+/* log */
+.daybar{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none;padding-bottom:2px}
+.daybar::-webkit-scrollbar{display:none}
+.daybar button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:13px;font-weight:800}
+.daybar button.on{background:var(--text);color:#0b1015;border-color:var(--text)}
+.lg-hand{border-top:1px solid var(--line);padding:10px 0}
+.lg-hand:first-child{border-top:none;padding-top:2px}
+.lg-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.lg-head b{font-size:15px}
+.lg-head .sp{flex:1}
+.lg-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 10px}
+.lg-p{display:flex;align-items:center;gap:6px;font-size:13px;min-width:0}
+.lg-p .n{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.lg-p.f{opacity:.45}
+.lg-p.me .n{color:var(--accent)}
+/* admin */
+.adm{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.adm:first-child{border-top:none}
+.adm .grow{flex:1;min-width:0}
+.adm .grow b{display:block}
+.it.lock{opacity:.45}
+.tag{font-size:10px;font-weight:800;border-radius:4px;padding:2px 5px;margin-left:6px;vertical-align:2px;background:#26313d;color:var(--sub)}
+.tag.own{background:#3a2c0f;color:var(--warn)}
+
 /* spectator */
 body.spectating{background:radial-gradient(120% 60% at 50% 0%,#24113d 0%,var(--bg) 60%) fixed}
 body.spectating .panel{border-color:#3b2a5c}
@@ -109,7 +149,6 @@ body.spectating .panel{border-color:#3b2a5c}
   display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.06em;color:#fff;
   background:linear-gradient(#1a1030,#1a1030) padding-box,linear-gradient(90deg,#ff2d95,#a64dff,#22e4ff) border-box;
   border:2px solid transparent;box-shadow:0 0 18px rgba(166,77,255,.45)}
-.spec-bar .eye{font-size:20px}
 .spec-bar b{white-space:nowrap}
 .spec-bar small{font-weight:700;letter-spacing:0;color:#cdb8ff;font-size:11px;margin-left:auto;text-align:right;line-height:1.35}
 /* board / equity */
@@ -246,7 +285,17 @@ const ERR = {
   BAD_CARD:"カードが正しくありません", BAD_AMOUNT:"金額が正しくありません",
   NOT_YET:"今日のセッションは翌日から見られます",
   NOT_SPECTATOR:"ボードは観戦中（降りた人・観戦モード）の人だけ入力できます",
-  NO_HAND:"まだハンドが始まっていません", BAD_BOARD:"ボードのカードが正しくありません"
+  NO_HAND:"まだハンドが始まっていません", BAD_BOARD:"ボードのカードが正しくありません",
+  PLAYER_BOUND:"このプレイヤーは他の端末で使われています。オーナーに紐づけ解除を頼んでください",
+  FOLD_FINAL:"フォールドは取り消せません", NOT_OWNER:"オーナーだけができる操作です"
+};
+// SVGアイコン（絵文字は使わない）
+const ICON = {
+  table:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="11" height="15" rx="2"/><path d="M10 4.2 17.6 3a2 2 0 0 1 2.3 1.7l1.8 11.6a2 2 0 0 1-1.7 2.3L16 19.2"/></svg>`,
+  chips:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>`,
+  stats:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20h16"/><path d="M7 16v-5M12 16V6M17 16v-8"/></svg>`,
+  log:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>`,
+  eye:`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`
 };
 
 // ---------- 状態 ----------
@@ -260,7 +309,11 @@ let chartPos = null;
 let pendingRender = false;
 let busy = false;
 let boardEdit = false;                    // ボード入力中
-const draft = { buy: 0, chip: null };     // 入金・チップ入力欄の下書き
+let boardSlot = null, swapFrom = null;    // 変更する枠／入れ替え元
+let lpTimer = null, lpConsume = false;    // 長押し判定（長押し直後のタップは無視）
+let autoClaim = false;                    // ログイン直後、この端末のプレイヤーで自動入室
+let logSession = null, logCache = {}, daysCache = null, logLoading = false;
+const draft = { buy: 0, chip: null };     // チップ追加・チップ数入力欄の下書き
 
 // ---------- ユーティリティ ----------
 const $ = s => document.querySelector(s);
@@ -276,6 +329,18 @@ function netMsg(m){
     return "サーバーにつながりません。config.js の url / key と電波を確認してください";
   return "通信エラー：" + (m || "");
 }
+// 端末ID（この端末とプレイヤーを紐づける。ブラウザごとに1つ）
+const DEVICE = (() => {
+  try{
+    let d = localStorage.getItem("poker.device");
+    if(!d){
+      d = (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }));
+      localStorage.setItem("poker.device", d);
+    }
+    return d;
+  }catch(e){ return null; }
+})();
 function loadAuth(){ try{ return JSON.parse(localStorage.getItem("poker.auth")) }catch(e){ return null } }
 function saveAuth(a){ auth = a; try{ a ? localStorage.setItem("poker.auth", JSON.stringify(a)) : localStorage.removeItem("poker.auth") }catch(e){} }
 
@@ -356,6 +421,7 @@ function render(){
   document.body.classList.toggle("spectating", screen === "main" && !!S?.spectator);
   if(screen === "select") loadPlayers();
   if(screen === "main" && tab === "stats") loadStats();
+  if(screen === "main" && tab === "log") loadLog();
 }
 document.addEventListener("focusout", () => setTimeout(() => { if(pendingRender) render(); }, 50));
 
@@ -376,8 +442,8 @@ async function joinCode(code){
   code = (code || "").trim();
   if(!code) return toast("コードを入れてください");
   try{
-    const a = await rpc("poker_join", { p_code: code });
-    saveAuth(a); screen = "select"; render();
+    const a = await rpc("poker_join", { p_code: code, p_device: DEVICE });
+    saveAuth(a); autoClaim = true; playersCache = null; screen = "select"; render();
   }catch(e){ toast(e.message); }
 }
 function openHost(){
@@ -395,8 +461,8 @@ function openHost(){
 async function hostOpen(){
   const pin = $("#pinIn").value, r = $("#rateIn").value.trim();
   try{
-    const a = await rpc("poker_host_open", { p_pin: pin, p_rate: r ? Number(r) : null });
-    saveAuth(a); closeModal(); screen = "select"; render();
+    const a = await rpc("poker_host_open", { p_pin: pin, p_rate: r ? Number(r) : null, p_device: DEVICE });
+    saveAuth(a); closeModal(); autoClaim = true; playersCache = null; screen = "select"; render();
   }catch(e){ toast(e.message); }
 }
 
@@ -434,43 +500,95 @@ function stopScanner(){
 
 // ===== プレイヤー選択 =====
 let playersCache = null;
+const ownerDevice = () => (playersCache || []).some(p => p.mine && p.owner);
 function selectHTML(){
-  const list = playersCache;
+  const list = playersCache, own = ownerDevice();
   return `<div style="padding-top:10px">
     <h2 style="font-size:22px;margin-bottom:4px">あなたは誰？</h2>
-    <p class="sub" style="margin-bottom:14px">登録済みなら選ぶと過去の成績を引き継ぎます</p>
+    <p class="sub" style="margin-bottom:14px">選んだプレイヤーはこの端末に紐づき、次回から自動でログインします${own ? "。オーナーは他の人を代理で操作できます" : ""}</p>
     <div class="panel list">${
       list == null ? `<p class="muted">読み込み中…</p>` :
       list.length === 0 ? `<p class="muted">まだ誰も登録されていません</p>` :
-      list.map(p => `<button class="it" style="width:100%;text-align:left" onclick="claim('${p.id}')">
-        <div class="grow"><b>${esc(p.name)}</b><div class="sub">${p.sessions}回参加</div></div>
-        <b class="${cls(p.profit)}">${signYen(p.profit)}</b></button>`).join("")
+      list.map(p => {
+        const locked = p.bound && !p.mine && !own;
+        const tag = p.mine ? `<span class="tag own">この端末</span>` : p.bound ? `<span class="tag">${own ? "代理で操作" : "他の端末で使用中"}</span>` : "";
+        return `<button class="it ${locked?"lock":""}" style="width:100%;text-align:left" ${locked ? "disabled" : `onclick="claim('${p.id}')"`}>
+        <div class="grow"><b>${esc(p.name)}${p.owner ? `<span class="tag own">オーナー</span>` : ""}${tag}</b><div class="sub">${p.sessions}回参加</div></div>
+        <b class="${cls(p.profit)}">${signYen(p.profit)}</b></button>`;
+      }).join("")
     }</div>
     <div class="panel">
       <div class="ptitle">新規プレイヤー登録</div>
       <div class="row"><input class="in" id="newName" onkeydown="if(event.key==='Enter')claimNew()" placeholder="名前（ニックネーム）" autocomplete="off">
       <button class="btn primary" style="flex:0 0 80px" onclick="claimNew()">登録</button></div>
+      ${own ? `<p class="sub" style="margin-top:8px">オーナーが登録した人は端末に紐づきません（本人が選んだ時に紐づきます）</p>` : ""}
     </div>
+    ${own ? `<button class="btn big" style="margin-bottom:10px" onclick="openAdmin()">プレイヤー管理</button>` : ""}
     <button class="btn ghost big" onclick="logout()">ログアウト</button>
   </div>`;
 }
 let loadingPlayers = false;
-async function loadPlayers(){
-  if(playersCache || loadingPlayers) return;
+async function loadPlayers(force){
+  if((playersCache && !force) || loadingPlayers) return;
   loadingPlayers = true;
-  try{ playersCache = await rpc("poker_players", { p_token: auth.token }); render(); }
+  try{
+    playersCache = await rpc("poker_players", { p_token: auth.token });
+    const mine = playersCache.find(p => p.mine);
+    if(autoClaim && mine){ autoClaim = false; loadingPlayers = false; return claim(mine.id); }
+    autoClaim = false;
+    if(screen === "select") render();
+  }
   catch(e){ toast(e.message); }
   finally{ loadingPlayers = false; }
 }
 async function claim(id){
-  try{ S = await rpc("poker_claim", { p_token: auth.token, p_player: id }); enterMain(); }catch(e){ toast(e.message); }
+  try{ S = await rpc("poker_claim", { p_token: auth.token, p_player: id }); enterMain(); }
+  catch(e){ toast(e.message); playersCache = null; render(); }
 }
 async function claimNew(){
   const n = $("#newName").value.trim();
   $("#newName").blur();
   try{ S = await rpc("poker_claim", { p_token: auth.token, p_new_name: n }); enterMain(); }catch(e){ toast(e.message); }
 }
-function enterMain(){ screen = "main"; tab = "table"; playersCache = null; connect(); ping(); render(); }
+function enterMain(){ screen = "main"; tab = "table"; playersCache = null; logCache = {}; daysCache = null; connect(); ping(); render(); }
+
+// ----- オーナー：プレイヤー管理 -----
+async function openAdmin(){
+  openModal(`<h2>プレイヤー管理<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2><p class="muted">読み込み中…</p>`);
+  try{ playersCache = await rpc("poker_players", { p_token: auth.token }); showAdmin(); }
+  catch(e){ closeModal(); toast(e.message); }
+}
+function showAdmin(){
+  openModal(`<h2>プレイヤー管理<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
+    <p class="sub" style="margin-bottom:8px">紐づけ解除：機種変更やブラウザを変えた時に。本人が次に選んだ端末に紐づきます</p>
+    ${(playersCache || []).map(p => `<div class="adm">
+      <div class="grow"><b>${esc(p.name)}${p.owner ? `<span class="tag own">オーナー</span>` : ""}</b>
+        <span class="sub">${p.bound ? (p.mine ? "この端末に紐づけ" : "端末に紐づけ済み") : "紐づけなし"}・${p.sessions}回参加</span></div>
+      ${!p.owner && p.bound ? `<button class="btn sm" onclick="adminUnbind('${p.id}')">紐づけ解除</button>` : ""}
+      ${!p.owner ? `<button class="btn sm danger" onclick="adminDelete('${p.id}')">削除</button>` : ""}
+    </div>`).join("")}`);
+}
+async function adminUnbind(id){
+  try{ playersCache = await rpc("poker_admin_unbind", { p_token: auth.token, p_player: id }); toast("紐づけを解除しました"); showAdmin(); }
+  catch(e){ toast(e.message); }
+}
+async function adminDelete(id){
+  const p = (playersCache || []).find(x => x.id === id);
+  const ok = await askConfirm(`${esc(p?.name)} を削除しますか？`, "このプレイヤーの成績・ハンド履歴もすべて消えます。元に戻せません。", "削除する", true);
+  if(!ok) return showAdmin();
+  try{ playersCache = await rpc("poker_admin_delete", { p_token: auth.token, p_player: id }); toast("削除しました"); showAdmin(); refresh(); }
+  catch(e){ toast(e.message); showAdmin(); }
+}
+// 確認ダイアログ
+function askConfirm(title, msg, okText, danger){
+  return new Promise(res => {
+    window.__ask = v => { window.__ask = null; closeModal(); res(v); };
+    openModal(`<h2>${title}</h2>
+      <p style="font-size:14px;line-height:1.7;color:var(--sub);margin-bottom:16px">${msg}</p>
+      <div class="row"><button class="btn big" onclick="__ask(false)">やめる</button>
+      <button class="btn big ${danger ? "danger" : "primary"}" onclick="__ask(true)">${okText}</button></div>`, () => { if(window.__ask){ window.__ask = null; res(false); } });
+  });
+}
 
 // ===== メイン =====
 function mainHTML(){
@@ -479,30 +597,35 @@ function mainHTML(){
   if(tab === "table") body = tableHTML();
   else if(tab === "chips") body = chipsHTML();
   else if(tab === "stats") body = statsHTML();
-  else body = chartHTML();
+  else body = logHTML();
   return `<div class="hd">
       <div class="hn"><small>HAND</small>#${S.hand_no ?? 0}</div>
       <div class="who"><b>${esc(me?.name)}</b><br>${S.day}</div>
       <button class="menu" onclick="openMenu()">⋯</button>
     </div>
-    ${S.spectator ? `<div class="spec-bar"><span class="eye">👁</span><b>観戦モード</b><small>${S.sitting_out ? "ハンドに不参加" : "フォールド中"}<br>全員の手札が見えています</small></div>` : ""}
+    ${S.spectator ? `<div class="spec-bar">${ICON.eye}<b>観戦モード</b><small>${S.sitting_out ? "ハンドに不参加" : "フォールド中"}<br>全員の手札が見えています</small></div>` : ""}
     ${body}
     <nav class="tabs">
-      ${[["table","🂠","テーブル"],["chips","◎","チップ"],["stats","▤","成績"],["chart","▦","チャート"]]
-        .map(([k,i,l]) => `<button class="${tab===k?"on":""}" onclick="setTab('${k}')"><i>${i}</i>${l}</button>`).join("")}
+      ${[["table","テーブル"],["chips","チップ"],["stats","成績"],["log","対戦ログ"]]
+        .map(([k,l]) => `<button class="${tab===k?"on":""}" onclick="setTab('${k}')">${ICON[k]}${l}</button>`).join("")}
     </nav>`;
 }
-function setTab(t){ tab = t; mode = null; pick = []; window.scrollTo(0,0); render(); }
+function setTab(t){ tab = t; mode = null; pick = []; boardSlot = null; swapFrom = null; window.scrollTo(0,0); render(); }
 
 // ----- テーブル -----
 function tableHTML(){
-  return handPanelHTML() + (S.spectator && S.hand_no ? boardHTML() : "") + playersHTML();
+  const has = !!S.my_c1 && !mode && !S.sitting_out;
+  return handPanelHTML() + (S.spectator && S.hand_no ? boardHTML() : "") + (has ? nextHTML() : "") + playersHTML();
+}
+function nextHTML(){
+  return `<div class="panel nextp"><button class="btn primary big" onclick="mode='next';pick=[];window.scrollTo(0,0);render()">次のゲームへ<small>新しく配られた2枚を入力</small></button></div>`;
 }
 function handPanelHTML(){
   if(S.sitting_out && !mode){
     return `<div class="panel"><div class="ptitle">観戦中<span class="sp"></span></div>
       <p class="sub" style="margin-bottom:12px">ハンドに参加していないので、全員の手札が見えます。ボードを入れると勝率が出ます</p>
-      <button class="btn primary big" onclick="mode='next';render()">ハンドに戻る（手札を入力）</button></div>`;
+      <button class="btn primary big" onclick="mode='next';render()">ゲームに参加する（手札を入力）</button>
+      <p class="sub" style="margin-top:8px">今のゲームが終わって、次の手札が配られてから入力してください</p></div>`;
   }
   const has = !!S.my_c1;
   if(!has || mode){
@@ -512,14 +635,20 @@ function handPanelHTML(){
   }
   const folded = S.my_folded;
   return `<div class="panel mine">
-    <div class="ptitle">ハンド #${S.hand_no}<span class="sp"></span>${tierBadge(S.my_c1, S.my_c2)}</div>
+    <div class="ptitle">ハンド #${S.hand_no}<span class="sp"></span>${S.owner ? tierBadge(S.my_c1, S.my_c2) : ""}</div>
     <div class="bigwrap"><div class="cards lg">${card(S.my_c1,"lg")}${card(S.my_c2,"lg")}</div>
       <div style="flex:1;display:grid;gap:8px">
-        <button class="btn ${folded?"":"danger"}" onclick="act('poker_fold',{p_folded:${!folded}})">${folded?"フォールド取消":"フォールド"}</button>
-        <button class="btn sm" onclick="mode='fix';pick=[];render()">入力ミスを修正</button>
+        ${folded ? `<button class="btn" disabled style="opacity:.6">フォールド済み</button>`
+                 : `<button class="btn danger" onclick="foldAsk()">フォールド</button>
+                    <button class="btn sm" onclick="mode='fix';pick=[];render()">入力ミスを修正</button>`}
       </div></div>
-    <button class="btn primary big" onclick="mode='next';pick=[];render()">次のハンドを入力</button>
+    ${S.owner ? rangeMiniHTML() : ""}
   </div>`;
+}
+async function foldAsk(){
+  const ok = await askConfirm("フォールドしますか？",
+    "フォールドすると、他の全プレイヤーの手札が見えるようになります。<br>そのため、このハンドではフォールドを取り消せません。", "フォールドする", true);
+  if(ok) act("poker_fold", { p_folded: true });
 }
 function pickerHTML(title){
   const slots = [0,1].map(i => pick[i] ? card(pick[i]) : `<span class="card back"></span>`).join("");
@@ -565,23 +694,51 @@ async function submitHand(c1, c2){
 function boardHTML(){
   const b = S.board || [];
   const labels = ["フロップ","","","ターン","リバー"];
-  const slots = [0,1,2,3,4].map(i => `${i===3||i===4?'<span class="gap"></span>':''}<div>${b[i] ? card(b[i],"md") : `<span class="card md empty">${i<3?"F":i===3?"T":"R"}</span>`}<div class="lbl">${labels[i]||"&nbsp;"}</div></div>`).join("");
+  const slots = [0,1,2,3,4].map(i => {
+    const live = !!b[i] || i === b.length;
+    const inner = b[i] ? card(b[i],"md") : `<span class="card md empty">${i<3?"F":i===3?"T":"R"}</span>`;
+    return `${i===3||i===4?'<span class="gap"></span>':''}<div class="bslot ${boardSlot===i?"sel":""} ${swapFrom===i?"swap":""}"
+      ${live ? `onpointerdown="bDown(${i})" onpointerup="bUp()" onpointerleave="bUp()" onpointercancel="bUp()" onclick="bTap(${i})" oncontextmenu="return false"` : ""}>
+      ${inner}<div class="lbl">${labels[i]||"&nbsp;"}</div></div>`;
+  }).join("");
   const street = b.length === 0 ? "プリフロップ" : b.length >= 3 ? ["","","","フロップ","ターン","リバー"][b.length] : "";
-  const eq = equityHTML();
+  const hint = swapFrom != null ? `<div class="hintbar">入れ替える相手のカードをタップしてください（同じカードをタップで中止）</div>`
+             : boardSlot != null ? `<div class="hintbar">${b[boardSlot] ? "このカードを変更します。新しいカードを選んでください" : "このカードを選んでください"}</div>` : "";
   return `<div class="panel">
     <div class="ptitle">ボード<span class="sp"></span><small>${street}</small>
-      <button class="btn sm" onclick="boardEdit=!boardEdit;render()">${boardEdit ? "閉じる" : b.length ? "編集" : "入力"}</button></div>
+      <button class="btn sm" onclick="boardEdit=!boardEdit;boardSlot=null;swapFrom=null;render()">${boardEdit ? "閉じる" : b.length ? "編集" : "入力"}</button></div>
     <div class="board">${slots}</div>
+    ${hint}
     ${boardEdit ? `<div class="picker" style="margin-bottom:12px">
         <div class="row" style="margin-bottom:8px">
           <button class="btn sm" onclick="boardUndo()" ${b.length?"":"disabled"}>1枚戻す</button>
           <button class="btn sm" onclick="boardClear()" ${b.length?"":"disabled"}>全部消す</button>
         </div>
         ${cardGridHTML(b, usedCards(), "tapBoard")}
-        <p class="sub" style="margin-top:6px">フロップは3枚続けてタップ。入れた内容は観戦中の全員に共有されます</p>
-      </div>` : ""}
-    ${eq}
+        <p class="sub" style="margin-top:6px">ボードのカードをタップ：そのカードだけ変更<br>長押し：もう1枚をタップして入れ替え</p>
+      </div>` : (b.length ? `<p class="sub" style="margin-bottom:10px">カードをタップで変更、長押しで入れ替え</p>` : "")}
+    ${equityHTML()}
   </div>`;
+}
+function bDown(i){
+  lpConsume = false;
+  if(!(S.board || [])[i]) return;
+  clearTimeout(lpTimer);
+  lpTimer = setTimeout(() => {
+    lpConsume = true; swapFrom = i; boardSlot = null;
+    try{ navigator.vibrate && navigator.vibrate(30); }catch(e){}
+    render();
+  }, 450);
+}
+function bUp(){ clearTimeout(lpTimer); }
+function bTap(i){
+  if(lpConsume){ lpConsume = false; return; }
+  const b = [...(S.board || [])];
+  if(swapFrom != null){
+    if(swapFrom !== i && b[i]){ [b[swapFrom], b[i]] = [b[i], b[swapFrom]]; S.board = b; queueBoardSave(); }
+    swapFrom = null; render(); return;
+  }
+  boardEdit = true; boardSlot = boardSlot === i ? null : i; render();
 }
 function usedCards(){
   const u = [];
@@ -592,12 +749,20 @@ let boardSaveT = null;
 function tapBoard(c){
   const b = [...(S.board || [])];
   const i = b.indexOf(c);
-  if(i >= 0) b.splice(i, 1); else if(b.length < 5) b.push(c); else return toast("ボードは5枚までです");
-  S.board = b; if(b.length === 5) boardEdit = false;
+  swapFrom = null;
+  if(boardSlot != null){
+    if(i >= 0){ [b[i], b[boardSlot]] = [b[boardSlot], b[i]]; }   // ボード内のカード同士なら入れ替え
+    else b[boardSlot] = c;
+    boardSlot = null;
+  }else if(i >= 0){ boardSlot = i; return render(); }            // 入っているカード → その枠を選択
+  else if(b.length < 5) b.push(c);
+  else return toast("ボードは5枚までです。変えたいカードをタップしてください");
+  S.board = b.filter(Boolean);
+  if(S.board.length === 5 && boardSlot == null) boardEdit = false;
   render(); queueBoardSave();
 }
-function boardUndo(){ S.board = (S.board || []).slice(0, -1); render(); queueBoardSave(); }
-function boardClear(){ S.board = []; render(); queueBoardSave(); }
+function boardUndo(){ S.board = (S.board || []).slice(0, -1); boardSlot = null; swapFrom = null; render(); queueBoardSave(); }
+function boardClear(){ S.board = []; boardSlot = null; swapFrom = null; render(); queueBoardSave(); }
 function queueBoardSave(){ clearTimeout(boardSaveT); boardSaveT = setTimeout(saveBoard, 350); }
 async function saveBoard(){
   const sent = JSON.stringify(S.board || []);
@@ -692,8 +857,7 @@ function equityHTML(){
       <div class="bw"><div class="eqbar"><div style="width:${(r.eq[i]*100).toFixed(1)}%"></div></div>
         ${r.tie[i] > 0.0005 ? `<div class="sub" style="margin-top:2px">引分 ${(r.tie[i]*100).toFixed(1)}%</div>` : ""}</div>
       <div class="pct">${(r.win[i]*100).toFixed(1)}%</div></div>`;
-  }).join("")}</div>
-  <p class="sub" style="margin-top:8px">${b.length === 5 ? "リバーまで出た時点の結果" : r.exact ? "残りの全パターンから計算" : "シミュレーションによる概算"}・降りた人の手札は山から除外済み</p>`;
+  }).join("")}</div>`;
 }
 
 function playersHTML(){
@@ -723,14 +887,14 @@ function chipsHTML(){
   const pr = profitOf(me);
   return `<div class="panel">
     <div class="big3">
-      <div><span>入金合計</span><b>${yen(me.buyin)}</b></div>
+      <div><span>チップ追加額</span><b>${yen(me.buyin)}</b></div>
       <div><span>現在チップ</span><b>${me.chips == null ? "—" : yen(me.chips)}</b></div>
       <div><span>収支</span><b class="${cls(pr)}">${signYen(pr)}</b></div>
     </div>
     <p class="sub" style="margin-top:8px;text-align:center">1チップ＝${S.rate}円${me.chips_at ? `・チップ更新 ${hm(me.chips_at)}` : ""}</p>
   </div>
   <div class="panel">
-    <div class="ptitle">入金を追加</div>
+    <div class="ptitle">チップ追加</div>
     <div class="chips" style="margin-bottom:10px">
       ${[1000,2000,3000,5000,10000].map(v => `<button onclick="addPreset(${v})">+${v.toLocaleString()}</button>`).join("")}
       <button onclick="draft.buy=0;render()" style="color:var(--sub)">クリア</button>
@@ -738,7 +902,7 @@ function chipsHTML(){
     <div class="row"><input class="in" id="buyIn" type="text" inputmode="numeric" autocomplete="off" placeholder="金額を入力"
         value="${draft.buy ? draft.buy.toLocaleString("ja-JP") : ""}" oninput="moneyInput(this,'buy')" onkeydown="if(event.key==='Enter')buyin()">
       <button class="btn primary" style="flex:0 0 80px" onclick="buyin()">追加</button></div>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="if(confirm('直前の入金を取り消しますか？'))act('poker_undo_buyin')">直前の入金を取り消す</button>
+    <button class="btn ghost sm" style="margin-top:8px" onclick="undoBuyin()">直前のチップ追加を取り消す</button>
   </div>
   <div class="panel">
     <div class="ptitle">今のチップ数</div>
@@ -752,7 +916,7 @@ function chipsHTML(){
     ${(S.players||[]).slice().sort((a,b) => (profitOf(b) ?? -1e15) - (profitOf(a) ?? -1e15)).map(p => {
       const q = profitOf(p);
       return `<div class="it"><div class="grow"><b>${esc(p.name)}</b>
-        <div class="sub">入金 ${yen(p.buyin)}・チップ ${p.chips == null ? "未入力" : yen(p.chips)}${p.chips_at ? `（${hm(p.chips_at)}）` : ""}</div></div>
+        <div class="sub">追加 ${yen(p.buyin)}・チップ ${p.chips == null ? "未入力" : yen(p.chips)}${p.chips_at ? `（${hm(p.chips_at)}）` : ""}</div></div>
         <b class="${cls(q)}">${signYen(q)}</b></div>`;
     }).join("")}
   </div>`;
@@ -773,7 +937,10 @@ async function buyin(){
   const v = draft.buy;
   if(!v) return toast("金額を入れてください");
   const el = $("#buyIn"); if(el) el.blur();
-  if(await act("poker_buyin", { p_amount: v })){ draft.buy = 0; render(); toast(`${v.toLocaleString("ja-JP")} 入金しました`); }
+  if(await act("poker_buyin", { p_amount: v })){ draft.buy = 0; render(); toast(`${v.toLocaleString("ja-JP")} のチップを追加しました`); }
+}
+async function undoBuyin(){
+  if(await askConfirm("取り消しますか？", "直前のチップ追加を1件取り消します。", "取り消す", true)) act("poker_undo_buyin");
 }
 async function saveChips(){
   const v = draft.chip;
@@ -793,14 +960,14 @@ function statsHTML(){
     <div class="ptitle">累計収支ランキング<span class="sp"></span><small>今日の分も含む</small></div>
     ${ranked.length ? ranked.map((p,i) => `<button class="it" style="width:100%;text-align:left" onclick="openDetail('${p.id}')">
       <span class="rank">${i+1}</span>
-      <div class="grow"><b>${esc(p.name)}</b><div class="sub">${p.sessions}回・入金累計 ${yen(p.total_buyin)}</div></div>
+      <div class="grow"><b>${esc(p.name)}</b><div class="sub">${p.sessions}回・チップ追加累計 ${yen(p.total_buyin)}</div></div>
       <b class="${cls(p.profit)}">${signYen(p.profit)}</b></button>`).join("") : `<p class="muted">まだ記録がありません</p>`}
   </div>
   <div class="panel list">
     <div class="ptitle">過去のセッション</div>
-    ${sessions.length ? sessions.map(s => `<button class="it" style="width:100%;text-align:left" onclick="openSession('${s.id}')">
+    ${sessions.length ? sessions.map(s => `<button class="it" style="width:100%;text-align:left" onclick="openLogDay('${s.id}')">
       <div class="grow"><b>${s.day}</b><div class="sub">${s.players}人・${s.hands}ハンド</div></div><span class="muted">›</span></button>`).join("")
-      : `<p class="muted">まだありません（今日の分は翌朝6時以降に見られます）</p>`}
+      : `<p class="muted">まだありません</p>`}
   </div>`;
 }
 async function loadStats(){
@@ -846,7 +1013,7 @@ async function openDetail(pid){
     openModal(`<h2>${esc(d.player?.name)}<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
       <div class="big3" style="margin-bottom:10px">
         <div><span>累計収支</span><b class="${cls(total)}">${signYen(known.length ? total : null)}</b></div>
-        <div><span>入金累計</span><b>${yen(buy)}</b></div>
+        <div><span>追加累計</span><b>${yen(buy)}</b></div>
         <div><span>勝ち越し</span><b>${wins}/${known.length}</b></div>
       </div>
       <div class="kv" style="margin-bottom:14px">
@@ -867,49 +1034,74 @@ async function openDetail(pid){
       <p class="sub" style="margin-bottom:14px">${st.tiers.map((v,i) => `${TIER_LABEL[i].replace("級","")} ${pct(v, st.n)}`).join("・")}</p>
       <div class="ptitle">セッション別</div>
       <div class="list">${ses.length ? ses.map(s => `<div class="it"><div class="grow"><b>${s.day}</b>
-        <div class="sub">入金 ${yen(s.buyin)}・チップ ${s.chips == null ? "未入力" : yen(s.chips)}</div></div>
+        <div class="sub">追加 ${yen(s.buyin)}・チップ ${s.chips == null ? "未入力" : yen(s.chips)}</div></div>
         <b class="${cls(s.profit)}">${signYen(s.profit)}</b></div>`).join("") : `<p class="muted">なし</p>`}</div>`);
   }catch(e){ closeModal(); toast(e.message); }
 }
-async function openSession(id){
-  openModal(`<h2>読み込み中…<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>`);
-  try{
-    const d = await rpc("poker_session_hands", { p_token: auth.token, p_session: id });
-    openModal(`<h2>${d.day}<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
-      <div class="list" style="margin-bottom:14px">${d.results.map(r => `<div class="it"><div class="grow"><b>${esc(r.name)}</b>
-        <div class="sub">入金 ${yen(r.buyin)}・チップ ${r.chips == null ? "未入力" : yen(r.chips)}</div></div>
-        <b class="${cls(r.profit)}">${signYen(r.profit)}</b></div>`).join("")}</div>
-      <div class="ptitle">ハンド履歴<span class="sp"></span><small>薄い＝降り</small></div>
-      ${d.hands.map(h => `<div class="hrow"><span class="n">#${h.n}</span><div class="who">${(h.c||[]).map(([n,c1,c2,f]) =>
-        `<span class="${f?"f":""}">${esc(n)} ${card(c1,"sm")}${card(c2,"sm")}</span>`).join("")}
-        ${(h.b||[]).length ? `<span style="width:100%;color:var(--sub)">ボード ${(h.b||[]).map(c => card(c,"sm")).join("")}</span>` : ""}</div></div>`).join("") || `<p class="muted">ハンドなし</p>`}`);
-  }catch(e){ closeModal(); toast(e.message); }
+// ----- オープンレンジ表（オーナーだけ・手札の近くに表示） -----
+function rangeMiniHTML(){
+  const mine = S.my_c1 && S.my_c2 ? handInfo(S.my_c1, S.my_c2) : null;
+  let cells = "";
+  for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){
+    const code = CHART[r][c];
+    const name = r === c ? RANKS[r]+RANKS[c] : r < c ? RANKS[r]+RANKS[c]+"s" : RANKS[c]+RANKS[r]+"o";
+    const isMine = mine && mine.row === r && mine.col === c;
+    cells += `<div class="hc ${code} ${mine && !isMine ? "dim" : ""} ${isMine?"mine":""}">${name}</div>`;
+  }
+  return `<div class="hgrid mini" style="margin-top:4px">${cells}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:11px;font-weight:700;color:var(--sub)">
+      ${[["N","UTG"],["Y","+1 +2"],["G","LJ HJ"],["B","CO"],["W","BTN"],["F","フォールド"]]
+        .map(([k,l]) => `<span style="display:inline-flex;gap:4px;align-items:center"><span class="dot" style="background:var(--${k})"></span>${l}</span>`).join("")}
+    </div>`;
 }
 
-// ----- チャート -----
-function chartHTML(){
-  const mine = S.my_c1 && S.my_c2 ? handInfo(S.my_c1, S.my_c2) : null;
-  let n = 0, cells = "";
-  for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){
-    const code = CHART[r][c], t = TIERS[code];
-    const name = r === c ? RANKS[r]+RANKS[c] : r < c ? RANKS[r]+RANKS[c]+"s" : RANKS[c]+RANKS[r]+"o";
-    const ok = chartPos == null || t <= chartPos;
-    if(t <= (chartPos ?? 4)) n += r === c ? 6 : r < c ? 4 : 12;
-    const isMine = mine && mine.row === r && mine.col === c;
-    cells += `<div class="hc ${code} ${ok?"":"dim"} ${isMine?"mine":""}">${name}</div>`;
-  }
-  return `<div class="panel">
-    <div class="ptitle">オープンレンジ表<span class="sp"></span>${mine ? tierBadge(S.my_c1, S.my_c2) : ""}</div>
-    <div class="posbar">${POSITIONS.map(p => `<button class="${chartPos===p.tier?"on":""}" onclick="chartPos=${p.tier};render()">
-      ${p.color ? `<span class="dot" style="background:var(--${p.color})"></span>` : ""}${p.label}</button>`).join("")}</div>
-    <p class="sub" style="margin-bottom:8px">${chartPos == null ? "どこかでオープンするハンド" : POSITIONS.find(p=>p.tier===chartPos).label + " からオープン"}：全体の約${(n/1326*100).toFixed(1)}%</p>
-    <div class="hgrid">${cells}</div>
-    <div style="display:grid;gap:6px;margin-top:12px;font-size:13px;font-weight:700">
-      ${[["N","UTG（9人の場合）"],["R","UTG（9人の場合）"],["Y","+1 +2"],["G","LJ HJ"],["B","CO"],["W","BTN"],["F","フォールド"]]
-        .map(([k,l]) => `<div style="display:flex;gap:8px;align-items:center"><span class="dot" style="width:14px;height:14px;background:var(--${k})"></span>${l}</div>`).join("")}
-    </div>
-    <p class="sub" style="margin-top:10px">ピンクの枠が今のあなたの手札。右上＝スーテッド、左下＝オフスート</p>
+// ----- 対戦ログ -----
+function logHTML(){
+  const days = daysCache || [];
+  const key = logSession || "today";
+  const d = logCache[key];
+  const chips = `<div class="daybar">${days.length ? days.map((x, i) => {
+      const k = i === 0 && x.id === S.session_id ? "today" : x.id;
+      return `<button class="${key === k ? "on" : ""}" onclick="openLogDay('${k === "today" ? "" : x.id}')">${k === "today" ? "今日" : fmtDay(x.day)}</button>`;
+    }).join("") : `<button class="on">今日</button>`}</div>`;
+  if(!d) return chips + `<div class="panel"><p class="muted">読み込み中…</p></div>`;
+  const res = d.today ? "" : `<div class="panel list"><div class="ptitle">${fmtDay(d.day)} の結果</div>
+      ${d.results.map(r => `<div class="it"><div class="grow"><b>${esc(r.name)}</b>
+        <div class="sub">追加 ${yen(r.buyin)}・チップ ${r.chips == null ? "未入力" : yen(r.chips)}</div></div>
+        <b class="${cls(r.profit)}">${signYen(r.profit)}</b></div>`).join("") || `<p class="muted">なし</p>`}</div>`;
+  const hands = d.hands.map(h => `<div class="lg-hand">
+      <div class="lg-head"><b>#${h.n}</b><span class="sub">${hm(h.t)}</span><span class="sp"></span>
+        ${(h.b||[]).length ? `<div class="cards">${h.b.map(c => card(c,"sm")).join("")}</div>` : ""}</div>
+      <div class="lg-rows">${(h.c || []).map(p => `<div class="lg-p ${p.f?"f":""} ${p.me?"me":""}">
+        <span class="n">${esc(p.name)}</span><div class="cards">${card(p.c1,"sm")}${card(p.c2,"sm")}</div></div>`).join("")}</div>
+    </div>`).join("");
+  return chips + res + `<div class="panel">
+    <div class="ptitle">${d.today ? "今日の対戦ログ" : "ハンド履歴"}<span class="sp"></span><small>${d.hands.length}ハンド・薄い＝降り</small></div>
+    ${hands || `<p class="muted">まだハンドがありません</p>`}
+    ${d.today ? `<p class="sub" style="margin-top:8px">今日の他の人の手札は、翌朝6時以降に見られるようになります</p>` : ""}
   </div>`;
+}
+const fmtDay = s => { const [y, m, d] = String(s).split("-"); return `${+m}/${+d}`; };
+function openLogDay(id){
+  logSession = id || null; tab = "log"; window.scrollTo(0,0);
+  if(logSession) delete logCache[logSession];
+  render();
+}
+async function loadLog(){
+  if(logLoading) return;
+  const key = logSession || "today";
+  const stamp = key === "today" ? `${S.hand_no}|${(S.board||[]).join("")}|${(S.players||[]).map(p => (p.entered?1:0)+(p.folded?2:0)).join("")}` : "fixed";
+  const c = logCache[key];
+  if(c && c._stamp === stamp && daysCache) return;
+  logLoading = true;
+  try{
+    const [d, days] = await Promise.all([
+      rpc("poker_log", { p_token: auth.token, p_session: logSession }),
+      daysCache ? Promise.resolve(daysCache) : rpc("poker_days", { p_token: auth.token })]);
+    d._stamp = stamp; logCache[key] = d; daysCache = days;
+    if(tab === "log") render();
+  }catch(e){ toast(e.message); }
+  finally{ logLoading = false; }
 }
 
 // ----- メニュー -----
@@ -917,8 +1109,9 @@ function openMenu(){
   openModal(`<h2>メニュー<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
     <div style="display:grid;gap:10px">
       <button class="btn big" onclick="showQR()">参加用QRを表示（途中参加の人へ）</button>
-      <button class="btn big" onclick="closeModal();act('poker_sitout',{p_on:${!S.sitting_out}})">${S.sitting_out ? "観戦をやめてハンドに戻る" : "観戦モードにする（しばらく抜ける）"}</button>
-      <button class="btn big" onclick="closeModal();switchPlayer()">プレイヤーを切り替える</button>
+      <button class="btn big" onclick="closeModal();act('poker_sitout',{p_on:${!S.sitting_out}})">${S.sitting_out ? "観戦をやめる" : "観戦モードにする（しばらく抜ける）"}</button>
+      ${S.owner ? `<button class="btn big" onclick="openAdmin()">プレイヤー管理（オーナー）</button>
+      <button class="btn big" onclick="closeModal();switchPlayer()">代理で操作するプレイヤーを選ぶ</button>` : ""}
       <button class="btn big danger" onclick="closeModal();logout()">ログアウト</button>
     </div>`);
 }
@@ -930,9 +1123,10 @@ function showQR(){
     <p class="sub" style="margin-top:6px">朝6時になると無効になります</p></div>`);
   new QRCode($("#qr"), { text: url, width: 230, height: 230, correctLevel: QRCode.CorrectLevel.M });
 }
-function switchPlayer(){ disconnect(); S = null; playersCache = null; screen = "select"; render(); }
+function switchPlayer(){ disconnect(); S = null; playersCache = null; autoClaim = false; screen = "select"; render(); }
 function logout(silent){
   disconnect(); saveAuth(null); S = null; playersCache = null; statsCache = null; mode = null; pick = [];
+  logCache = {}; daysCache = null; logSession = null; autoClaim = false;
   screen = "gate"; render();
   if(silent) toast(ERR.LOGIN_EXPIRED);
 }
@@ -960,7 +1154,7 @@ $("#modal").addEventListener("click", e => { if(e.target.id === "modal") closeMo
   if(auth?.token){
     try{
       S = await rpc("poker_state", { p_token: auth.token });
-      if(S.me){ screen = "main"; connect(); } else screen = "select";
+      if(S.me){ screen = "main"; connect(); } else { screen = "select"; autoClaim = true; }
       return render();
     }catch(e){ saveAuth(null); /* 期限切れ：QRからやり直し */ }
   }
