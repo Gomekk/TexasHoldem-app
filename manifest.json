@@ -1,6 +1,6 @@
 {
-  "name": "ポーカーナイト",
-  "short_name": "ポーカー",
+  "name": "Texas Hold'em",
+  "short_name": "Texas Hold'em",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
