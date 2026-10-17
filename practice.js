@@ -1066,6 +1066,14 @@ function css(){
   .cm-lb b{color:var(--text);font-size:14px}
   .cm-s{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
   .quiz{border-color:#4a3480}
+  .qx{background:var(--panel2);border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:12.5px;line-height:1.7}
+  .qx-h{font-weight:900;font-size:13.5px;margin-bottom:4px;color:#ffb4a8}
+  .qx p{margin-bottom:5px}
+  .qx b.g{color:#7ff0ff}.qx b.o{color:#ffb08a}
+  .qx-bar{margin:6px 0}
+  .qx-f{background:#0e141a;border-radius:8px;padding:7px 9px;margin:6px 0;font-variant-numeric:tabular-nums}
+  .qx-tips{display:grid;gap:5px;margin-top:6px}
+  .qx-tips div{font-size:12px;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:9px;padding:6px 9px}
   .qz-q{font-weight:800;font-size:14px;margin:8px 0 6px}
   .qz-q small{display:block;font-size:11px;color:var(--sub);font-weight:600}
   .qz-o{display:flex;gap:5px;flex-wrap:wrap}
@@ -1397,7 +1405,9 @@ function quizHTML(){
     const nHit = needQ ? Math.abs(NEED_OPTS[q.need] - a.req) <= 0.03 : null;
     return `<div class="panel quiz done"><div class="ptitle">答え合わせ</div>
       <div class="qz-r ${hit ? "ok" : "ng"}"><span>勝率</span><b>${hit ? "正解" : "はずれ"}</b><em>予想 ${b[2]} → 実際 ${pctS(a.eq, 0)}</em></div>
+      ${hit ? "" : explainEq(a, b)}
       ${needQ ? `<div class="qz-r ${nHit ? "ok" : "ng"}"><span>必要勝率</span><b>${nHit ? "正解" : "はずれ"}</b><em>予想 ${pctS(NEED_OPTS[q.need], 0)} → 実際 ${pctS(a.req, 0)}</em></div>
+        ${nHit ? "" : explainNeed(a, NEED_OPTS[q.need])}
         <p class="sub" style="margin-top:6px">実現率を掛けた勝率 ${pctS(a.eqR, 0)} と、余裕込みの必要勝率 ${pctS(a.need, 0)} を比べると → <b style="color:var(--text)">${a.eqR >= a.need ? "コールに足りる" : "コールには足りない"}</b></p>` : ""}
       <p class="sub" style="margin-top:6px">これまでの正解率：勝率 ${stats.qN ? pctS(stats.qHit / stats.qN, 0) : "—"}（${stats.qN}問）${stats.qNeedN ? `・必要勝率 ${pctS(stats.qNeedHit / stats.qNeedN, 0)}（${stats.qNeedN}問）` : ""}</p></div>`;
   }
@@ -1407,6 +1417,53 @@ function quizHTML(){
     ${needQ ? `<p class="qz-q">2. 必要勝率は？<small>コール ${fmt(a.toCall)}・ポット ${fmt(a.pot)}</small></p>
     <div class="qz-o">${NEED_OPTS.map((v, i) => `<button class="${q.need === i ? "on" : ""}" onclick="Practice.qAns('need',${i})">${pctS(v, 0)}</button>`).join("")}</div>` : ""}
     <p class="sub" style="margin-top:8px">ヒント：早見表の「ベット額」と「対決」の数字を思い出してみましょう　<button class="btn sm" onclick="Practice.cheat('bet')">早見表</button></p>
+  </div>`;
+}
+// 外れた時の解説
+function explainEq(a, guessBucket){
+  const W = whyBreakdown(), mid = (guessBucket[0] + Math.min(1, guessBucket[1])) / 2;
+  const high = mid > a.eq;                               // 予想が高すぎた
+  const out = [];
+  out.push(`<p>予想は${guessBucket[2]}でしたが、実際は<b>${pctS(a.eq, 0)}</b>。予想が<b>${high ? "高すぎ" : "低すぎ"}</b>でした。</p>`);
+  if(W){
+    const rg = oppRanges(0).find(r => r.name === W.opp.name);
+    const pct = rg ? rg.combos.length / COMBOS.length : 1;
+    out.push(`<p><b>相手のレンジ</b>：${esc(W.opp.name)}は${esc(W.label)}（全体の約${pctS(pct, 0)}）。${pct < 0.15 ? "かなり強い手札に絞られているので、こちらの勝率は下がります" : pct < 0.35 ? "強めの手札が中心です" : "広いレンジなので、弱い手札もたくさん含まれます"}</p>`);
+    const good = W.bw.b4 + W.bw.b3, bad = W.bw.b1 + W.bw.b0;
+    const exBad = (W.ex.b0.length ? W.ex.b0 : W.ex.b1).slice(0, 3).join(" "), exGood = (W.ex.b4.length ? W.ex.b4 : W.ex.b3).slice(0, 3).join(" ");
+    out.push(`<div class="qx-bar">${stackBar(W.bw, 10)}</div>
+      <p>相手のレンジのうち、<b class="g">${pctS(good, 0)}に有利</b>${exGood ? `（${exGood}など）` : ""}、<b class="o">${pctS(bad, 0)}に不利</b>${exBad ? `（${exBad}など）` : ""}。1人に対する勝率は${pctS(W.eqHU, 0)}です</p>`);
+    if(W.ahead != null) out.push(`<p><b>リードと逆転</b>：今リードしているのは相手レンジの${pctS(W.ahead, 0)}で、リードしていればそのまま勝つのは${pctS(W.keep, 0)}。負けている${pctS(W.behind, 0)}からの逆転は${pctS(W.comeback, 0)}。→ ${pctS(W.ahead,0)}×${pctS(W.keep,0)}＋${pctS(W.behind,0)}×${pctS(W.comeback,0)} ≒ ${pctS(W.eqHU, 0)}</p>`);
+    if(W.multi > 1) out.push(`<p><b>人数</b>：相手が${W.multi}人いるので、全員に勝つ必要があります。1人に対して${pctS(W.eqHU, 0)}でも、全員相手だと${pctS(a.eq, 0)}まで下がります${high ? "（人数が増えると勝率は大きく下がるのを忘れがち）" : ""}</p>`);
+  }
+  // 予想のコツ
+  const tips = [];
+  if(G.street === 0){
+    tips.push("プリフロップは早見表の「型」で考える：ペア対オーバーカード2枚 ≒ 55%、上のペア対下のペア ≒ 80%、キッカー負け ≒ 25〜30%、上2枚対下2枚 ≒ 60〜65%");
+    if(high && G.raiseCount > 0) tips.push("相手が前のポジションからオープン・3ベットしている時は、相手の手札にあなたより上のカード（特にA・K）や大きいペアが多い");
+    else if(high) tips.push(`誰もレイズしていなくても、弱い手札は1人相手でも${W ? pctS(W.eqHU, 0) : "50%前後"}程度。そこに人数が加わると一気に下がる`);
+    else tips.push("相手のレンジが広い時（後ろのポジション、リンプ、BB）は、弱い手札も多いので思ったより勝てる");
+  }else{
+    const o = a.outs;
+    if(o && o.outs) tips.push(`ドローはアウツで数える：今はアウツ${o.outs}枚なので、${G.board.length === 3 ? `×4で約${o.outs * 4}%` : `×2で約${o.outs * 2}%`}${G.board.length === 3 ? "（リバーまで）" : "（次の1枚）"}`);
+    tips.push(high ? "相手がベット・レイズしている時は、相手のレンジがボードに絡んだ手札に絞られている。ワンペアでも思ったより負けている" : "相手がチェックしている時や、ボードに絡みにくいレンジの時は、弱い手札でも思ったより勝っている");
+  }
+  if(W && W.multi > 1) tips.push("相手が2人なら勝率はおおよそ「1人あたり」の2乗に近づく（60%なら約36%）");
+  out.push(`<div class="qx-tips">${tips.map(t => `<div>${t}</div>`).join("")}</div>`);
+  return `<div class="qx"><div class="qx-h">なぜ${pctS(a.eq, 0)}なのか</div>${out.join("")}</div>`;
+}
+function explainNeed(a, guess){
+  const me = G.players[0];
+  const toCall = a.toCall, pot = a.pot;
+  const oppBet = Math.max(0, G.currentBet - me.bet);    // あなたが払う額＝相手が上乗せした分
+  const ratio = oppBet / Math.max(1, pot - oppBet);
+  const near = BET_SIZES.reduce((x, y) => Math.abs(y[1] - ratio) < Math.abs(x[1] - ratio) ? y : x, BET_SIZES[0]);
+  const high = guess > a.req;
+  return `<div class="qx"><div class="qx-h">なぜ必要勝率が${pctS(a.req, 0)}なのか</div>
+    <p>予想は${pctS(guess, 0)}、実際は<b>${pctS(a.req, 0)}</b>（予想が${high ? "高すぎ" : "低すぎ"}）。</p>
+    <div class="qx-f">コール額 <b>${fmt(toCall)}</b> ÷（今のポット <b>${fmt(pot)}</b> ＋ コール額 <b>${fmt(toCall)}</b>）＝ <b>${pctS(a.req, 0)}</b></div>
+    <p>相手が上乗せした額 ${fmt(oppBet)} は、その前のポットの約<b>${near[0]}</b>（実際は${(ratio * 100).toFixed(0)}%）。早見表では${near[0]}ポットへのコールは必要勝率 ${pctS(near[1] / (1 + 2 * near[1]), 0)}。</p>
+    <p class="th-s">${G.street === 0 ? "プリフロップは、ブラインドやアンティ（デッドマネー）がすでにポットに入っていて、BBやSBはすでに一部を払っているので、早見表より必要勝率が低くなることが多い" : high ? "ポットが大きいほど、同じコール額でも必要勝率は下がる。「コール額」より「ポットに対する割合」で考えるとズレにくい" : "相手のベットがポットに対して大きいほど必要勝率は上がる。ポットの半分なら25%、ポットと同じなら33%が基準"}</p>
   </div>`;
 }
 function qAns(kind, i){
@@ -1523,8 +1580,10 @@ function thinking(a){
                : draw ? "ドロー（今は弱いが伸びる：セミブラフの候補）"
                : "エア（ほぼ勝てない：あきらめるか、ブロッカーがあればブラフ）";
     const bl = blockerNotes(me.hole, board);
+    const inRange = X.me.list.some(h => (h[0] === me.hole[0] && h[1] === me.hole[1]) || (h[0] === me.hole[1] && h[1] === me.hole[0]));
     steps.push({ t:"自分の手札の立ち位置", b:`
-      <p>あなたのレンジ（${esc(X.me.label)}）の中で <b>上位${pctS(1 - pctile, 0)}</b> の強さ</p>
+      ${inRange ? `<p>あなたのレンジ（${esc(X.me.label)}）の中で <b>上位${pctS(1 - pctile, 0)}</b> の強さ</p>`
+                : `<p>あなたの手札は、この場面のレンジ（${esc(X.me.label)}）の<b>外</b>＝本来は参加しない手札です（下のバーは、レンジの手札と比べた強さ）</p>`}
       <div class="th-pbar"><i style="left:${(pctile * 100).toFixed(1)}%"></i></div>
       <p>役割：<b>${role}</b></p>
       ${bl.length ? `<p class="th-s">ブロッカー：${bl.join("／")}</p>` : ""}` });
