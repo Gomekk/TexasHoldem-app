@@ -410,6 +410,7 @@ async function act(fn, args = {}){
 
 // ---------- 描画 ----------
 function render(){
+  if(screen === "practice") return Practice.render();
   const ae = document.activeElement;
   if(ae && ae.tagName === "INPUT" && $("#app").contains(ae)){ pendingRender = true; return; }
   pendingRender = false;
@@ -436,6 +437,7 @@ function gateHTML(){
     <div class="row"><input class="in" id="codeIn" onkeydown="if(event.key==='Enter')joinCode(this.value)" placeholder="コードを手入力" autocapitalize="characters" autocomplete="off">
       <button class="btn" style="flex:0 0 80px" onclick="joinCode($('#codeIn').value)">参加</button></div>
     <button class="btn ghost" onclick="openHost()">ホストとして今日の部屋を開く</button>
+    <button class="btn" onclick="Practice.open('gate')">1人で練習（CPU対戦）</button>
   </div>`;
 }
 async function joinCode(code){
@@ -1109,6 +1111,7 @@ function openMenu(){
   openModal(`<h2>メニュー<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
     <div style="display:grid;gap:10px">
       <button class="btn big" onclick="showQR()">参加用QRを表示（途中参加の人へ）</button>
+      <button class="btn big" onclick="closeModal();Practice.open('main')">1人で練習（CPU対戦）</button>
       <button class="btn big" onclick="closeModal();act('poker_sitout',{p_on:${!S.sitting_out}})">${S.sitting_out ? "観戦をやめる" : "観戦モードにする（しばらく抜ける）"}</button>
       ${S.owner ? `<button class="btn big" onclick="openAdmin()">プレイヤー管理（オーナー）</button>
       <button class="btn big" onclick="closeModal();switchPlayer()">代理で操作するプレイヤーを選ぶ</button>` : ""}
@@ -1164,5 +1167,6 @@ $("#modal").addEventListener("click", e => { if(e.target.id === "modal") closeMo
 
 if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
+<script src="practice.js"></script>
 </body>
 </html>
