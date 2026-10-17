@@ -944,15 +944,57 @@ function css(){
   .rv-nums b{font-size:14px;font-variant-numeric:tabular-nums}
   .rv-why{font-size:12px;color:var(--sub);line-height:1.7}
   .rg{position:relative;width:100%;aspect-ratio:1/1.02;max-height:470px;margin:6px 0 10px}
-  .rg-felt{position:absolute;left:13%;right:13%;top:15%;bottom:15%;border-radius:50%;
+  .rg-felt{position:absolute;left:12%;right:12%;top:14%;bottom:14%;border-radius:50%;
     background:radial-gradient(110% 90% at 50% 30%,#1b5a3d,#0e3323 70%,#0a2619);border:6px solid #3a2416;
-    box-shadow:0 0 0 2px #5b3b24,inset 0 0 30px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
-  .rg-pot{font-size:11px;color:#bfe8d1}
+    box-shadow:0 0 0 2px #5b3b24,inset 0 0 30px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+  .rg-pot{font-size:11px;color:#bfe8d1;display:flex;align-items:baseline;gap:4px}
+  .rg-pot .rg-st{margin-left:6px}
+  .fm{width:52%;margin-top:2px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .fm-lbl{font-size:9.5px;color:#bfe8d1;font-weight:700;letter-spacing:.04em}
+  .fm-big{font-size:28px;line-height:1;font-weight:900;color:#fff;font-variant-numeric:tabular-nums}
+  .fm.ok .fm-big{color:#7ff0ff;text-shadow:0 0 14px rgba(34,228,255,.6)}
+  .fm.ng .fm-big{color:#ffb4a8}
+  .fm-calc{color:#8fc9a9;font-size:9.5px;white-space:nowrap}
+  .fm-calc b{color:#fff}
+  .fm-bar{position:relative;width:100%;height:10px;border-radius:5px;background:rgba(0,0,0,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);margin-top:2px}
+  .fm-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:linear-gradient(90deg,#1f8f63,#22e4ff)}
+  .fm.ng .fm-bar i{background:linear-gradient(90deg,#8a2a3a,#ff5468)}
+  .fm-bar em{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:#fff;border-radius:2px;box-shadow:0 0 6px rgba(255,255,255,.8)}
+  .wb{display:flex;width:100%;border-radius:4px;overflow:hidden;background:rgba(0,0,0,.4)}
+  .wb i,.wl i{display:block;height:100%}
+  .b4{background:#22e4ff}.b3{background:#2fbf7a}.b2{background:#c9c27a}.b1{background:#ff9b54}.b0{background:#ff5468}
+  .fw{width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px}
+  .fw-t{font-size:9.5px;color:#bfe8d1;white-space:nowrap}
+  .fw-t b{color:#fff;margin:0 2px 0 3px}
+  .fw-t b.g{color:#7ff0ff}.fw-t b.o{color:#ffb08a}
+  .why .wls{display:grid;gap:5px;margin-top:10px}
+  .wl{display:grid;grid-template-columns:12px 72px 40px 1fr;align-items:center;gap:6px;font-size:12px}
+  .wl i{width:12px;height:12px;border-radius:3px}
+  .wl .n{font-weight:800}
+  .wl b{text-align:right;font-variant-numeric:tabular-nums}
+  .wl .e{color:var(--sub);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wab{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);display:grid;gap:6px}
+  .wab-row{display:grid;grid-template-columns:52px 1fr 34px auto 34px;align-items:center;gap:6px;font-size:12px}
+  .wab-row .t{font-weight:800}
+  .wab-row b{text-align:right;font-variant-numeric:tabular-nums}
+  .wab-row b.g{color:#7ff0ff}.wab-row b.o{color:#ffb08a}
+  .wab-row .arw{color:var(--sub);font-size:11px;white-space:nowrap}
+  .wab-bar{height:10px;border-radius:5px;background:var(--panel2);overflow:hidden}
+  .wab-bar i{display:block;height:100%}
+  .wab-bar i.up{background:#2fbf7a}.wab-bar i.dn{background:#ff7a5c}
+  .wab-f{font-size:12px;color:var(--sub);margin-top:2px}
+  .wab-f b{color:var(--text);font-size:14px}
+  .wm{margin-top:10px;font-size:12px;line-height:1.7;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px}
+  .wm b{color:#fff}
+  .fm-rec{font-size:12px;font-weight:900;border-radius:999px;padding:3px 11px;margin-top:2px;white-space:nowrap}
+  .fm-rec.f{background:#3a1820;color:#ff8a99;border:1px solid #6b2633}
+  .fm-rec.c{background:#0f3a28;color:#3ddc97;border:1px solid #1f6b4a}
+  .fm-rec.r{background:#2a1a4d;color:#c7a8ff;border:1px solid #5a3a9a}
   .rg-pot b{font-size:16px;color:#fff;margin-left:2px;font-variant-numeric:tabular-nums}
   .rg-bd{display:flex;gap:3px}
   .rg-st{font-size:10px;color:#8fc9a9;font-weight:700;letter-spacing:.08em}
-  .card.bd{width:31px;height:44px;font-size:15px;border-radius:5px}
-  .card.bd i{font-size:15px;margin-top:1px}
+  .card.bd{width:27px;height:38px;font-size:13px;border-radius:5px}
+  .card.bd i{font-size:13px;margin-top:1px}
   .card.bd.empty{border:1.5px dashed rgba(255,255,255,.22)}
   .card.xs{width:20px;height:28px;font-size:11px;border-radius:4px}
   .card.xs i{font-size:11px;margin-top:0}
@@ -969,10 +1011,12 @@ function css(){
   .rg-seat.win{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn),0 0 14px rgba(255,176,32,.35)}
   .rg-seat.out{opacity:.25}
   .rg-seat.me{background:#10261c;border-color:#22c37a}
-  .rg-bet{position:absolute;transform:translate(-50%,-50%);z-index:1;font-size:10.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.55);
-    border-radius:999px;padding:2px 7px 2px 4px;display:flex;align-items:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .rg-bet{position:absolute;left:50%;top:50%;z-index:5;font-size:11px;font-weight:800;color:#fff;background:#0b1a12;border:1px solid #2f6b4c;
+    border-radius:999px;padding:2px 7px 2px 4px;display:flex;align-items:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none;
+    box-shadow:0 1px 4px rgba(0,0,0,.6)}
+  .rg-seat.fold .rg-bet{opacity:1}
   .rg-bet i{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#fff 28%,#e0283c 30% 62%,#fff 64%);display:inline-block}
-  .rg-dealer{position:absolute;transform:translate(-50%,-50%);z-index:1;width:18px;height:18px;border-radius:50%;background:#f2f2f2;color:#111;
+  .rg-dealer{position:absolute;left:-7px;top:-7px;z-index:5;width:18px;height:18px;border-radius:50%;background:#f2f2f2;color:#111;
     font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.6)}
   .hc.d3{background:#6d3fd6;color:#fff}.hc.dc{background:#2f8f46;color:#fff}.hc.df{background:#232c36;color:#5f6b78}
   .d3t{color:#b99bff}.dct{color:#3ddc97}.dft{color:#8796a6}
@@ -1051,6 +1095,7 @@ function tableHTML(){
   if(G.over) return h + overHTML() + reviewHTML();
   // 相手
   h += ringHTML();
+  h += whyPanelHTML();
   // 自分
   const pos = posInfo(0);
   const myCat = me.hole.length ? CAT_NAME[catOf(evaluate(me.hole.concat(G.board)))] : "";
@@ -1081,22 +1126,155 @@ function tierBadgeText(me){
 // 楕円テーブル：あなたが一番下、時計回り（左回り＝あなたの左隣が次）に座る
 function ringHTML(){
   const P = G.players, n = P.length;
-  const W = 100, Hh = 100;               // %
-  const seat = (i, rx, ry) => { const a = (90 + i * 360 / n) * Math.PI / 180; return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a) }; };
+  const seat = (i, rx, ry) => { const a = (90 + i * 360 / n) * Math.PI / 180; return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a), ux: -Math.cos(a), uy: -Math.sin(a) }; };
   const bd = [0,1,2,3,4].map(i => G.board[i] != null ? card(cs(G.board[i]), "bd") : `<span class="card bd empty"></span>`).join("");
   let seats = "", bets = "";
   P.forEach((p, i) => {
-    const pt = seat(i, 41, 41), bp = seat(i, 25, 23);
+    const pt = seat(i, 41, 41);
     const pos = p.out ? { name:"" } : posInfo(p.id);
-    if(p.bet > 0 && !p.out) bets += `<div class="rg-bet" style="left:${bp.x}%;top:${bp.y}%"><i></i>${fmt(p.bet)}</div>`;
-    if(pos.name === "BTN"){ const dp = seat(i + 0.32, 30, 29); bets += `<div class="rg-dealer" style="left:${dp.x}%;top:${dp.y}%">D</div>`; }
+    // ベット額：席の枠から、テーブルの中心側にはみ出す位置に表示（名前と重ならない）
+    pt.extra = (p.bet > 0 && !p.out ? `<div class="rg-bet" style="transform:translate(calc(-50% + ${(pt.ux * 54).toFixed(1)}px),calc(-50% + ${(pt.uy * 50).toFixed(1)}px))"><i></i>${fmt(p.bet)}</div>` : "")
+             + (pos.name === "BTN" ? `<div class="rg-dealer">D</div>` : "");
     seats += i === 0 ? mySeatHTML(p, pt, pos) : ringSeatHTML(p, pt, pos);
   });
   return `<div class="rg">
-    <div class="rg-felt"><div class="rg-pot">ポット <b>${fmt(potTotal())}</b></div><div class="rg-bd">${bd}</div>
-      <div class="rg-st">${G.phase === "done" ? "ハンド終了" : ["プリフロップ","フロップ","ターン","リバー"][G.street]}</div></div>
+    <div class="rg-felt"><div class="rg-pot">ポット <b>${fmt(potTotal())}</b><span class="rg-st">${G.phase === "done" ? "ハンド終了" : ["プリフロップ","フロップ","ターン","リバー"][G.street]}</span></div><div class="rg-bd">${bd}</div>
+      ${feltMeterHTML()}</div>
     ${bets}${seats}
   </div>`;
+}
+// テーブル中央の勝率メーター
+//  ・あなたの番：実現後の勝率 vs 必要勝率（縦線）＋おすすめ
+//  ・それ以外：今の推定勝率だけ
+let liveEqCache = null;
+function liveEquity(){
+  const me = G.players[0];
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(liveEqCache && liveEqCache.key === key) return liveEqCache.val;
+  const eq = equityRange(me.hole, G.board, oppRanges(0), 1500);
+  const ip = heroIP(), R = realize(ip, G.street, me.hole[0], me.hole[1], G.street === 0 ? eq : null);
+  liveEqCache = { key, val: { eq, R, eqR: eq * R, ip } };
+  return liveEqCache.val;
+}
+function feltMeterHTML(){
+  const me = G.players[0];
+  if(!cfg.advice || !me.hole.length || me.folded || G.phase === "done" || live().length < 2) return "";
+  const myTurn = G.phase === "play" && G.toAct === 0;
+  const a = myTurn ? advise() : liveEquity();
+  const hasCall = myTurn && a.toCall > 0 && a.kind !== "open" && a.kind !== "push";
+  const val = hasCall ? a.eqR : a.eq;
+  const need = hasCall ? a.need : null;
+  const good = hasCall ? a.eqR >= a.need : a.eq >= 1 / live().length;
+  const recCls = myTurn ? (a.rec.type === "fold" ? "f" : a.rec.type === "raise" ? "r" : "c") : "";
+  const w = Math.max(2, Math.min(100, val * 100));
+  return `<div class="fm ${good ? "ok" : "ng"}">
+    <div class="fm-lbl">${hasCall ? "実現後の勝率" : "推定勝率"}</div>
+    <b class="fm-big">${pctS(val, 0)}</b>
+    <div class="fm-bar"><i style="width:${w}%"></i>${need != null ? `<em style="left:${Math.min(100, need * 100)}%"></em>` : ""}</div>
+    <div class="fm-calc">${hasCall ? `${pctS(a.eq,0)}×${a.R.toFixed(2)}・<b>必要 ${pctS(need,0)}</b>` : `相手${live().length - 1}人の推定レンジに対して`}</div>
+    ${feltWhyHTML()}
+    ${myTurn ? `<div class="fm-rec ${recCls}">${esc(a.rec.label)}</div>` : ""}
+  </div>`;
+}
+// ---------------------------------------------------------------------
+//  なぜこの勝率？（相手レンジの内訳と、リード／逆転の分解）
+// ---------------------------------------------------------------------
+const BUCKETS = [
+  { k:"b4", name:"大きく有利", min:0.70 }, { k:"b3", name:"有利", min:0.55 }, { k:"b2", name:"互角", min:0.45 },
+  { k:"b1", name:"不利", min:0.30 }, { k:"b0", name:"大きく不利", min:-1 } ];
+let whyCache = null;
+function primaryOpp(){
+  const L = live().filter(p => p.id !== 0);
+  const ag = L.filter(p => p.aggr[G.street]).slice(-1)[0];
+  if(ag) return ag;
+  if(G.opener > 0 && L.some(p => p.id === G.opener)) return G.players[G.opener];
+  const r = L.filter(p => p.pfRaises > 0).slice(-1)[0];
+  return r || L[0];
+}
+function whyBreakdown(){
+  const me = G.players[0];
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(whyCache && whyCache.key === key) return whyCache.val;
+  const opp = primaryOpp(); if(!opp) return null;
+  const rg = oppRanges(0).find(r => r.name === opp.name);
+  const hole = me.hole, board = G.board;
+  const blocked = new Uint8Array(64); hole.concat(board).forEach(c => blocked[c] = 1);
+  // 相手レンジを手札の種類ごとにまとめる
+  const groups = {};
+  rg.combos.forEach(h => {
+    if(blocked[h[0]] || blocked[h[1]]) return;
+    if(board.length >= 3){ let ok = true; for(let s = 1; s <= G.street; s++) if(rg.aggr[s] && !improves(h, board.slice(0, s + 2))){ ok = false; break; } if(!ok) return; }
+    const [r, c] = rcOf(h[0], h[1]), k = r * 13 + c;
+    (groups[k] = groups[k] || { r, c, combos: [] }).combos.push(h);
+  });
+  const deckBase = ALL.filter(c => !blocked[c]);
+  const myNow = board.length >= 3 ? evaluate(hole.concat(board)) : 0;
+  const per = Object.values(groups);
+  let totW = 0, eqSum = 0, ahead = 0, aheadWin = 0, behind = 0, behindWin = 0, tie = 0;
+  const bw = { b4:0, b3:0, b2:0, b1:0, b0:0 }, ex = { b4:[], b3:[], b2:[], b1:[], b0:[] };
+  const iters = per.length > 120 ? 36 : per.length > 50 ? 60 : 120;
+  per.forEach(g => {
+    let w = 0;
+    for(let i = 0; i < iters; i++){
+      const h = g.combos[Math.floor(rnd() * g.combos.length)];
+      const used = new Set(h);
+      const d = deckBase.filter(c => !used.has(c)); let len = d.length;
+      const bd = board.slice(); while(bd.length < 5){ const j = Math.floor(rnd() * len); bd.push(d[j]); d[j] = d[--len]; }
+      const a = evaluate(hole.concat(bd)), b = evaluate(h.concat(bd));
+      const res = a > b ? 1 : a === b ? 0.5 : 0;
+      w += res;
+      if(board.length >= 3){
+        const on = evaluate(h.concat(board));
+        const wt = g.combos.length / iters;
+        if(myNow > on){ ahead += wt; aheadWin += wt * res; } else if(myNow < on){ behind += wt; behindWin += wt * res; } else tie += wt;
+      }
+    }
+    g.eq = w / iters; const wt = g.combos.length;
+    totW += wt; eqSum += g.eq * wt;
+    const bk = BUCKETS.find(b => g.eq >= b.min).k;
+    bw[bk] += wt; ex[bk].push({ name: clsName(g.r, g.c), wt });
+  });
+  if(!totW) return null;
+  BUCKETS.forEach(b => { bw[b.k] /= totW; ex[b.k] = ex[b.k].sort((x, y) => y.wt - x.wt).slice(0, 4).map(x => x.name); });
+  const val = { opp, label: rg.label, eqHU: eqSum / totW, bw, ex, combos: totW,
+    ahead: board.length >= 3 ? ahead / totW : null, behind: board.length >= 3 ? behind / totW : null, tie: board.length >= 3 ? tie / totW : null,
+    keep: ahead ? aheadWin / ahead : 0, comeback: behind ? behindWin / behind : 0, multi: live().length - 1 };
+  whyCache = { key, val };
+  return val;
+}
+function stackBar(bw, h){
+  return `<div class="wb" style="height:${h}px">${BUCKETS.map(b => bw[b.k] > 0.004 ? `<i class="${b.k}" style="width:${(bw[b.k] * 100).toFixed(1)}%"></i>` : "").join("")}</div>`;
+}
+function whyPanelHTML(){
+  const me = G.players[0];
+  if(!cfg.advice || !me.hole.length || me.folded || G.phase === "done" || live().length < 2) return "";
+  const W = whyBreakdown(); if(!W) return "";
+  const myTurn = G.phase === "play" && G.toAct === 0;
+  const a = myTurn ? advise() : liveEquity();
+  const legend = BUCKETS.map(b => W.bw[b.k] > 0.004 ? `<div class="wl"><i class="${b.k}"></i><span class="n">${b.name}</span><b>${pctS(W.bw[b.k], 0)}</b><span class="e">${W.ex[b.k].join(" ")}</span></div>` : "").join("");
+  const ab = W.ahead != null ? `
+    <div class="wab">
+      <div class="wab-row"><span class="t">今リード</span><div class="wab-bar"><i class="up" style="width:${(W.ahead*100).toFixed(1)}%"></i></div><b>${pctS(W.ahead,0)}</b>
+        <span class="arw">→ そのまま勝つ</span><b class="g">${pctS(W.keep,0)}</b></div>
+      <div class="wab-row"><span class="t">今負け</span><div class="wab-bar"><i class="dn" style="width:${(W.behind*100).toFixed(1)}%"></i></div><b>${pctS(W.behind,0)}</b>
+        <span class="arw">→ 逆転</span><b class="o">${pctS(W.comeback,0)}</b></div>
+      <div class="wab-f">勝率 ≒ ${pctS(W.ahead,0)}×${pctS(W.keep,0)} ＋ ${pctS(W.behind,0)}×${pctS(W.comeback,0)}${W.tie > 0.01 ? ` ＋ 引分の半分` : ""} ＝ <b>${pctS(W.eqHU,0)}</b></div>
+    </div>` : "";
+  const all = liveEquity().eq;
+  const multi = W.multi > 1 ? `<p class="wm">相手が${W.multi}人いるので、全員に勝たないとポットを取れません。${esc(W.opp.name)}1人に対しては${pctS(W.eqHU,0)}でも、残っている全員が相手だと <b>${pctS(all,0)}</b> まで下がります${a.kind === "defend" ? "（ディフェンスの判断は、オープンした人との勝率に、後ろの人の分の余裕を足した必要勝率で比べています）" : ""}</p>` : "";
+  return `<div class="panel why">
+    <div class="ptitle">なぜこの勝率？<span class="sp"></span><small>${esc(W.opp.name)}の${esc(W.label)}</small></div>
+    <p class="sub" style="margin-bottom:6px">相手のレンジ（考えられる手札${W.combos}通り）を、あなたの手札との相性で色分け</p>
+    ${stackBar(W.bw, 16)}
+    <div class="wls">${legend}</div>
+    ${ab}${multi}
+  </div>`;
+}
+function feltWhyHTML(){
+  const W = whyBreakdown(); if(!W) return "";
+  const fav = W.bw.b4 + W.bw.b3, bad = W.bw.b1 + W.bw.b0;
+  return `<div class="fw">${stackBar(W.bw, 7)}
+    <div class="fw-t">${W.ahead != null ? `今リード<b>${pctS(W.ahead,0)}</b>・逆転<b>${pctS(W.comeback,0)}</b>` : `有利<b class="g">${pctS(fav,0)}</b>・不利<b class="o">${pctS(bad,0)}</b>`}</div></div>`;
 }
 function ringSeatHTML(p, pt, pos){
   if(p.out) return `<div class="rg-seat out" style="left:${pt.x}%;top:${pt.y}%"><div class="nm">${esc(p.name)}</div><div class="sub">敗退</div></div>`;
@@ -1105,7 +1283,7 @@ function ringSeatHTML(p, pt, pos){
   const win = G.phase === "done" && p.won > 0;
   const cards = p.folded && !show ? "" : `<div class="cards">${p.hole.map(c => show ? card(cs(c), "xs") : `<span class="card xs back"></span>`).join("")}</div>`;
   return `<div class="rg-seat ${turn ? "turn" : ""} ${p.folded ? "fold" : ""} ${win ? "win" : ""}" style="left:${pt.x}%;top:${pt.y}%">
-    ${cards}
+    ${pt.extra || ""}${cards}
     <div class="nm">${esc(p.name)}${pos.name ? `<span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span>` : ""}</div>
     <div class="stk">${fmt(p.stack)}</div>
     <div class="act">${turn ? "考え中…" : win ? `<b>+${fmt(p.won)}</b>` : p.act || p.style.n}${p.shown && p.score ? `・${CAT_NAME[catOf(p.score)]}` : ""}</div>
@@ -1114,6 +1292,7 @@ function ringSeatHTML(p, pt, pos){
 function mySeatHTML(p, pt, pos){
   const turn = G.phase === "play" && G.toAct === 0, win = G.phase === "done" && p.won > 0;
   return `<div class="rg-seat me ${turn ? "turn" : ""} ${p.folded ? "fold" : ""} ${win ? "win" : ""}" style="left:${pt.x}%;top:${pt.y}%">
+    ${pt.extra || ""}
     <div class="nm">あなた<span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span></div>
     <div class="stk">${fmt(p.stack)}</div>
     <div class="act">${turn ? "あなたの番" : win ? `<b>+${fmt(p.won)}</b>` : p.act || "&nbsp;"}</div>
