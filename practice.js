@@ -29,7 +29,7 @@ const pctS = (v, d = 1) => (v * 100).toFixed(d) + "%";
 const rnd = Math.random;
 
 let cfg = load(LS_CFG, { format:"ring", opp:5, ante:"none", speed:"normal", advice:true, prob:true, chart:true });
-let stats = load(LS_STATS, { hands:0, decisions:0, agree:0, ringProfit:0, tours:[] });
+let stats = load(LS_STATS, { hands:0, decisions:0, agree:0, ringProfit:0, tours:[], scoreSum:0, scoreN:0 });
 function load(k, d){ try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k)) || {}); }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 
@@ -96,7 +96,9 @@ function startHand(){
   G.seats = seatOrder();                        // ボタンから時計回り
   G.deck = shuffle(ALL.slice());
   G.board = []; G.street = 0; G.result = null; G.raiseCount = 0; G.actions = 0;
-  G.log = []; addLog(`ハンド #${G.handNo}　ブラインド ${fmt(G.sb)}/${fmt(G.bb)}${G.ante ? `　アンティ ${fmt(G.ante)}` : ""}`);
+  G.log = []; G.decisions = []; G.review = null; ui.review = true;
+  G.startStacks = G.players.map(p => p.stack + p.total); G.stack0 = G.players[0].stack;
+  addLog(`ハンド #${G.handNo}　ブラインド ${fmt(G.sb)}/${fmt(G.bb)}${G.ante ? `　アンティ ${fmt(G.ante)}` : ""}`);
   // アンティ（デッドマネー）
   const hu = act.length === 2;
   const sbSeat = hu ? G.seats[0] : G.seats[1], bbSeat = hu ? G.seats[1] : G.seats[2];
@@ -249,6 +251,7 @@ function buildPots(){
 function finishHand(){
   G.phase = "done"; clearTimeout(G.timer); ui.sizing = false;
   stats.hands++;
+  try{ G.review = buildReview(); if(G.review.score != null){ stats.scoreSum += G.review.score; stats.scoreN++; } }catch(e){ G.review = null; }
   const me = G.players[0];
   // 脱落
   if(G.tour){
@@ -529,19 +532,154 @@ function probTable(){
 }
 
 // ---------------------------------------------------------------------
+//  ハンドの振り返り（GTO的な評価）
+// ---------------------------------------------------------------------
+// 実際の相手の手札に対する勝率（結果論の勝率）
+function actualEquity(hole, board, opps){
+  if(!opps.length) return 1;
+  const known = new Set(hole.concat(board, ...opps));
+  const deck = ALL.filter(c => !known.has(c));
+  const need = 5 - board.length;
+  let win = 0, n = 0;
+  const score = bd => {
+    const mine = evaluate(hole.concat(bd));
+    let ties = 1;
+    for(const o of opps){ const v = evaluate(o.concat(bd)); if(v > mine) return 0; if(v === mine) ties++; }
+    return 1 / ties;
+  };
+  if(need === 0){ return score(board); }
+  if(need === 1){ deck.forEach(c => { win += score(board.concat(c)); n++; }); return win / n; }
+  if(need === 2){ for(let i = 0; i < deck.length; i++) for(let j = i + 1; j < deck.length; j++){ win += score(board.concat(deck[i], deck[j])); n++; } return win / n; }
+  for(let k = 0; k < 3000; k++){
+    const d = deck.slice(); let len = d.length;
+    const bd = board.slice(); while(bd.length < 5){ const j = Math.floor(rnd() * len); bd.push(d[j]); d[j] = d[--len]; }
+    win += score(bd); n++;
+  }
+  return win / n;
+}
+const ACT_NAME = { fold:"フォールド", check:"チェック", call:"コール", raise:"ベット／レイズ" };
+const STREET = ["プリフロップ","フロップ","ターン","リバー"];
+function judge(d){
+  const bbv = v => (v / d.bb).toFixed(1) + "BB";
+  const rt = d.rec.type === "check" ? (d.toCall > 0 ? "call" : "check") : d.rec.type;
+  const my = d.type, cls = t => t === "check" || t === "call" ? "pass" : t;
+  const margin = d.toCall > 0 ? d.eq - d.req : d.eq - 0.5;      // 判断のしきい値からの距離
+  const close = Math.abs(margin) < 0.05;
+  let grade, title, why;
+  if(cls(my) === cls(rt)){
+    grade = 3; title = "良い判断";
+    why = d.rec.reason;
+    if(my === "raise" && d.rec.to && d.amount){
+      const ratio = d.amount / d.rec.to;
+      if(ratio > 1.8 || ratio < 0.5){ grade = 2; title = "方向は正解・サイズに改善点"; why = `アクションはおすすめどおり。ただし金額 ${fmt(d.amount)} は目安 ${fmt(d.rec.to)} から離れています。${ratio > 1 ? "大きすぎると、弱い手札が降りて強い手札だけが残ります" : "小さすぎると、相手に安くドローを引かせてしまいます"}`; }
+    }
+  }else if(d.street === 0 && (d.ev >= 0) === (rt === "fold")){
+    // プリフロップでチャート（ポジション）を根拠にした判断：数字より範囲が優先
+    grade = rt === "fold" ? 1 : 1; title = my === "fold" ? "降りすぎ" : my === "raise" ? "攻めすぎ" : "参加しすぎ";
+    if(my === "call" && rt === "fold" && d.toCall <= d.bb) title = "リンプ（コールで参加）";
+    why = `おすすめは「${d.rec.label}」。${d.rec.reason}。${my === "call" && rt === "fold" ? "勝率の数字は足りていても、後ろのポジションで不利に戦うことになるので、オープン範囲外の手札はレイズで参加しないなら降りるのが基本です" : ""}`;
+    if(my === "fold" && rt === "raise") why = `おすすめは「${d.rec.label}」。${d.rec.reason}`;
+  }else if(my === "fold"){
+    // 降りすぎ
+    const lost = Math.max(0, d.ev);
+    grade = close ? 2 : 0; title = close ? "ギリギリの判断（降りすぎ気味）" : "降りすぎ";
+    why = `勝率${pctS(d.eq,0)}は必要勝率${pctS(d.req,0)}を上回っていました。コールの期待値は約+${fmt(lost)}（${bbv(lost)}）で、フォールドでその分を手放しています`;
+    if(rt === "raise") why = `勝率${pctS(d.eq,0)}と有利な場面でした。${d.rec.label}が目安です`;
+  }else if(my === "call" && rt === "fold"){
+    const lost = Math.max(0, -d.ev);
+    grade = close ? 2 : 0; title = close ? "ギリギリの判断（コールしすぎ気味）" : "コールしすぎ";
+    why = `必要勝率${pctS(d.req,0)}に対して勝率${pctS(d.eq,0)}。このコールの期待値は約−${fmt(lost)}（${bbv(lost)}）です`;
+    if(d.outs && d.outs.outs >= 8) why += `。アウツ${d.outs.outs}枚のドローなので、相手から後で大きく取れるならギリギリ許容範囲`;
+  }else if(my === "raise" && (rt === "fold" || rt === "check" || rt === "call")){
+    grade = d.eq >= 0.45 || close ? 2 : 1; title = d.eq >= 0.45 ? "攻めすぎ（悪くはない）" : "攻めすぎ";
+    why = `勝率${pctS(d.eq,0)}で、目安は「${d.rec.label}」。${d.eq < 0.35 ? "ブラフとして使うなら、相手が降りやすいボードかどうか・アウツがあるかを意識しましょう" : "強さが中くらいの手札で大きくすると、強い手札にだけコールされがちです"}`;
+  }else if((my === "call" || my === "check") && rt === "raise"){
+    grade = 2; title = "消極的";
+    why = `勝率${pctS(d.eq,0)}と有利でした。「${d.rec.label}」でもっと価値を取れた場面です`;
+  }else{
+    grade = 2; title = "まずまず"; why = d.rec.reason;
+  }
+  return { grade, title, why };
+}
+function buildReview(){
+  const me = G.players[0];
+  const items = G.decisions.map(d => {
+    const opps = d.liveIds.map(id => G.players[id].hole);
+    const actual = actualEquity(me.hole, d.board, opps);
+    return Object.assign({}, d, judge(d), { actual });
+  });
+  const net = me.stack - G.stack0;
+  const score = items.length ? Math.round(items.reduce((a, x) => a + x.grade, 0) / (items.length * 3) * 100) : null;
+  // 判断と結果のズレ（運の要素）
+  let luck = "";
+  const allin = items.filter(x => x.type !== "fold").slice(-1)[0];
+  if(score != null && allin){
+    if(net < 0 && score >= 80 && allin.actual >= 0.55) luck = `判断は良好でしたが、実際の手札に対して勝率${pctS(allin.actual,0)}あった勝負で負けました。結果は運の範囲（バッドビート）です。同じ判断を続ければ長期的にはプラスになります`;
+    else if(net > 0 && score < 60 && allin.actual < 0.45) luck = `結果は勝ちですが、実際の勝率は${pctS(allin.actual,0)}でした。今回はラッキー寄りなので、判断の改善点を確認しておきましょう`;
+    else if(net > 0 && score >= 80) luck = "判断も結果も良好なハンドでした";
+  }
+  // 相手の手札
+  const opp = G.players.filter(p => p.id !== 0 && !p.out && p.hole.length).map(p => ({
+    name:p.name, hole:p.hole, folded:p.folded, cat: G.board.length >= 3 ? CAT_NAME[catOf(evaluate(p.hole.concat(G.board)))] : "", won:p.won }));
+  const best = items.filter(x => x.grade === 0)[0] || items.filter(x => x.grade === 1)[0];
+  const lesson = best ? `${STREET[best.street]}の${ACT_NAME[best.type]}：${best.title}` : items.length ? "大きなミスはありませんでした" : "";
+  return { items, net, score, luck, opp, lesson };
+}
+function reviewHTML(){
+  const R = G.review;
+  if(!R) return "";
+  const me = G.players[0];
+  const gradeName = s => s >= 85 ? "S" : s >= 70 ? "A" : s >= 50 ? "B" : s >= 30 ? "C" : "D";
+  const gcls = g => g === 3 ? "g3" : g === 2 ? "g2" : g === 1 ? "g1" : "g0";
+  const head = `<div class="rv-top">
+      <div class="rv-score ${R.score == null ? "" : R.score >= 70 ? "hi" : R.score >= 50 ? "mid" : "lo"}">${R.score == null ? "—" : gradeName(R.score)}<small>${R.score == null ? "判断なし" : `判断スコア ${R.score}`}</small></div>
+      <div class="rv-sum"><div>このハンドの収支</div><b class="${R.net > 0 ? "plus" : R.net < 0 ? "minus" : ""}">${signed(R.net)}</b><span>${(R.net / G.bb >= 0 ? "+" : "") + (R.net / G.bb).toFixed(1)}BB</span></div>
+    </div>`;
+  const items = R.items.map(x => `<div class="rv-it">
+      <div class="rv-h"><span class="rv-st">${STREET[x.street]}</span>${x.board.length ? `<div class="cards">${x.board.map(c => card(cs(c), "sm")).join("")}</div>` : `<span class="sub">${x.pos}</span>`}<span class="sp"></span><span class="rv-g ${gcls(x.grade)}">${x.title}</span></div>
+      <div class="rv-row"><span>あなた</span><b>${ACT_NAME[x.type]}${x.amount && x.type === "raise" ? ` ${fmt(x.amount)}` : x.type === "call" ? ` ${fmt(x.amount)}` : ""}</b>
+        <span>おすすめ</span><b>${esc(x.rec.label)}</b></div>
+      <div class="rv-nums">
+        <div><span>ポット</span><b>${fmt(x.pot)}</b></div>
+        <div><span>推定勝率</span><b>${pctS(x.eq,0)}</b></div>
+        <div><span>必要勝率</span><b>${x.toCall ? pctS(x.req,0) : "—"}</b></div>
+        <div><span>実際の勝率</span><b>${pctS(x.actual,0)}</b></div>
+      </div>
+      <p class="rv-why">${x.why}</p>
+    </div>`).join("");
+  const opps = R.opp.map(o => `<div class="lg-p ${o.folded ? "f" : ""}"><span class="n">${esc(o.name)}${o.won > 0 ? ` <b class="plus">+${fmt(o.won)}</b>` : ""}</span><div class="cards">${o.hole.map(c => card(cs(c), "sm")).join("")}</div></div>`).join("");
+  return `<div class="panel rv">
+    <div class="ptitle">振り返り<span class="sp"></span><button class="btn sm" onclick="Practice.toggleReview()">${ui.review ? "閉じる" : "開く"}</button></div>
+    ${head}
+    ${ui.review ? `
+      ${R.luck ? `<p class="rv-luck">${R.luck}</p>` : ""}
+      ${R.lesson ? `<p class="sub" style="margin:8px 0 4px">このハンドのポイント：<b style="color:var(--text)">${esc(R.lesson)}</b></p>` : ""}
+      ${items || `<p class="muted" style="margin-top:8px">このハンドではあなたの判断はありませんでした</p>`}
+      <div class="ptitle" style="margin-top:12px">相手の手札<span class="sp"></span><small>薄い＝降りた人</small></div>
+      <div class="lg-rows">${opps}</div>
+      <p class="sub" style="margin-top:10px">推定勝率＝その時点で分かっていた情報（相手のアクションから推定したレンジ）での勝率。実際の勝率＝相手の本当の手札に対する勝率（結果論）。判断の評価は推定勝率で行います</p>` : ""}
+  </div>`;
+}
+
+// ---------------------------------------------------------------------
 //  あなたの操作
 // ---------------------------------------------------------------------
 function human(type, to){
   const me = G.players[0];
   if(G.phase !== "play" || G.toAct !== 0) return;
-  if(cfg.advice){
-    const a = advise();
-    const norm = t => t === "check" || t === "call" ? "pass" : t;
-    const ok = norm(a.rec.type) === norm(type === "check" && me.bet < G.currentBet ? "call" : type);
-    stats.decisions++; if(ok) stats.agree++;
-    addLog(`（アドバイス：${a.rec.label}　→ あなた：${ok ? "一致" : "不一致"}）`);
-    save(LS_STATS, stats);
-  }
+  const a = advise();
+  const norm = t => t === "check" || t === "call" ? "pass" : t;
+  const realType = type === "check" && me.bet < G.currentBet ? "call" : type;
+  const ok = norm(a.rec.type) === norm(realType);
+  stats.decisions++; if(ok) stats.agree++;
+  if(cfg.advice) addLog(`（アドバイス：${a.rec.label}　→ あなた：${ok ? "一致" : "不一致"}）`);
+  save(LS_STATS, stats);
+  // 振り返り用に、その時点の状況を記録
+  const toCall = Math.min(G.currentBet - me.bet, me.stack);
+  const amt = realType === "raise" ? Math.min(to, me.bet + me.stack) : realType === "call" ? toCall : 0;
+  G.decisions.push({ street:G.street, board:G.board.slice(), pot:a.pot, toCall:a.toCall, eq:a.eq, req:a.req, ev:a.ev,
+    rec:a.rec, type:realType, amount:amt, pos:posInfo(0).name, liveIds: live().filter(p => p.id !== 0).map(p => p.id),
+    outs:a.outs, stack:me.stack + me.bet, bet:me.bet, currentBet:G.currentBet, bb:G.bb });
   ui.sizing = false;
   doAction(0, type, to);
 }
@@ -632,6 +770,64 @@ function css(){
   .pr-sw:first-child{border-top:none}
   .pr-sw span{flex:1}
   .pr-sw input{width:22px;height:22px;accent-color:#22c37a}
+  .rv-top{display:flex;gap:10px;align-items:stretch}
+  .rv-score{width:96px;border-radius:12px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:34px;font-weight:900;line-height:1;padding:10px 0}
+  .rv-score small{font-size:10px;font-weight:700;color:var(--sub);margin-top:6px}
+  .rv-score.hi{color:#7ff0ff;box-shadow:inset 0 0 0 1px #22e4ff}
+  .rv-score.mid{color:var(--warn)}
+  .rv-score.lo{color:var(--bad)}
+  .rv-sum{flex:1;border-radius:12px;background:var(--panel2);padding:10px 12px;display:flex;flex-direction:column;justify-content:center}
+  .rv-sum div{font-size:11px;color:var(--sub)}
+  .rv-sum b{font-size:24px;font-variant-numeric:tabular-nums}
+  .rv-sum span{font-size:12px;color:var(--sub)}
+  .rv-luck{margin-top:10px;font-size:12px;line-height:1.7;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px}
+  .rv-it{border-top:1px solid var(--line);padding:10px 0}
+  .rv-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .rv-h .sp{flex:1}
+  .rv-st{font-weight:900;font-size:14px}
+  .rv-g{font-size:11px;font-weight:900;border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .rv-g.g3{background:#0f3a28;color:#3ddc97}
+  .rv-g.g2{background:#3a2c0f;color:var(--warn)}
+  .rv-g.g1{background:#3a2412;color:#ff9b54}
+  .rv-g.g0{background:#3a1820;color:#ff8a99}
+  .rv-row{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;align-items:baseline;font-size:13px;margin-bottom:8px}
+  .rv-row span{font-size:11px;color:var(--sub)}
+  .rv-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
+  .rv-nums div{background:var(--panel2);border-radius:8px;padding:6px 2px;text-align:center}
+  .rv-nums span{display:block;font-size:10px;color:var(--sub)}
+  .rv-nums b{font-size:14px;font-variant-numeric:tabular-nums}
+  .rv-why{font-size:12px;color:var(--sub);line-height:1.7}
+  .rg{position:relative;width:100%;aspect-ratio:1/1.02;max-height:470px;margin:6px 0 10px}
+  .rg-felt{position:absolute;left:13%;right:13%;top:15%;bottom:15%;border-radius:50%;
+    background:radial-gradient(110% 90% at 50% 30%,#1b5a3d,#0e3323 70%,#0a2619);border:6px solid #3a2416;
+    box-shadow:0 0 0 2px #5b3b24,inset 0 0 30px rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .rg-pot{font-size:11px;color:#bfe8d1}
+  .rg-pot b{font-size:16px;color:#fff;margin-left:2px;font-variant-numeric:tabular-nums}
+  .rg-bd{display:flex;gap:3px}
+  .rg-st{font-size:10px;color:#8fc9a9;font-weight:700;letter-spacing:.08em}
+  .card.bd{width:31px;height:44px;font-size:15px;border-radius:5px}
+  .card.bd i{font-size:15px;margin-top:1px}
+  .card.bd.empty{border:1.5px dashed rgba(255,255,255,.22)}
+  .card.xs{width:20px;height:28px;font-size:11px;border-radius:4px}
+  .card.xs i{font-size:11px;margin-top:0}
+  .rg-seat{position:absolute;transform:translate(-50%,-50%);width:84px;background:rgba(20,28,36,.94);border:1px solid var(--line);border-radius:12px;
+    padding:5px 5px 4px;text-align:center;z-index:2}
+  .rg-seat .cards{gap:2px;margin-bottom:3px}
+  .rg-seat .nm{font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;justify-content:center;gap:3px}
+  .rg-seat .nm .pr-pos{font-size:9px;padding:0 3px}
+  .rg-seat .stk{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+  .rg-seat .act{font-size:10px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:12px}
+  .rg-seat .act b{color:#7ff0ff}
+  .rg-seat.turn{border-color:#22e4ff;box-shadow:0 0 0 1px #22e4ff,0 0 14px rgba(34,228,255,.45)}
+  .rg-seat.fold{opacity:.42}
+  .rg-seat.win{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn),0 0 14px rgba(255,176,32,.35)}
+  .rg-seat.out{opacity:.25}
+  .rg-seat.me{background:#10261c;border-color:#22c37a}
+  .rg-bet{position:absolute;transform:translate(-50%,-50%);z-index:1;font-size:10.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.55);
+    border-radius:999px;padding:2px 7px 2px 4px;display:flex;align-items:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .rg-bet i{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#fff 28%,#e0283c 30% 62%,#fff 64%);display:inline-block}
+  .rg-dealer{position:absolute;transform:translate(-50%,-50%);z-index:1;width:18px;height:18px;border-radius:50%;background:#f2f2f2;color:#111;
+    font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.6)}
   .pr-tag{display:inline-block;font-size:10px;font-weight:800;border-radius:4px;padding:1px 5px;background:#26313d;color:var(--sub);margin-left:4px;vertical-align:1px}
   `;
   document.head.appendChild(st);
@@ -680,6 +876,8 @@ function setupHTML(){
         <div><span>アドバイスとの一致率</span><b>${agree}</b></div>
         <div><span>トーナメント参加</span><b>${stats.tours.length}回</b></div>
         <div><span>トーナメント最高</span><b>${best}</b></div>
+        <div><span>判断スコア平均</span><b>${stats.scoreN ? Math.round(stats.scoreSum / stats.scoreN) : "—"}</b></div>
+        <div><span>振り返ったハンド</span><b>${fmt(stats.scoreN || 0)}</b></div>
       </div>
       <p class="sub" style="margin-top:10px">アドバイスは、GTOソルバーではなく「勝率・必要勝率・相手のアクションから推定したレンジ」をもとにした目安です</p>
     </div>`;
@@ -695,12 +893,9 @@ function tableHTML(){
   const sub = `${fmt(G.sb)}/${fmt(G.bb)}${G.ante ? `・アンティ${fmt(G.ante)}` : ""}・ハンド#${G.handNo}${G.tour ? `・次のレベルまで${HANDS_PER_LEVEL - ((G.handNo - 1) % HANDS_PER_LEVEL)}` : ""}`;
   let h = `<div class="pr-hd"><div class="t"><b>${head}</b><span>${sub}</span></div>
       <button class="btn sm" onclick="Practice.quit()">終了</button></div>`;
-  if(G.over) return h + overHTML();
+  if(G.over) return h + overHTML() + reviewHTML();
   // 相手
-  h += `<div class="pr-opps">${P.slice(1).filter(p => !p.out).map(p => seatHTML(p)).join("")}</div>`;
-  // 中央
-  const bd = [0,1,2,3,4].map(i => G.board[i] != null ? card(cs(G.board[i]), "md") : `<span class="card md empty"></span>`).join("");
-  h += `<div class="pr-mid"><div class="pot">ポット<b>${fmt(potTotal())}</b></div><div class="bd">${bd}</div></div>`;
+  h += ringHTML();
   // 自分
   const pos = posInfo(0);
   const myCat = me.hole.length ? CAT_NAME[catOf(evaluate(me.hole.concat(G.board)))] : "";
@@ -712,7 +907,7 @@ function tableHTML(){
         <div>${(me.stack / G.bb).toFixed(1)}BB${me.bet ? `・ベット中 ${fmt(me.bet)}` : ""}</div>
         <div>${me.folded ? "フォールド" : G.board.length ? myCat : tierBadgeText(me)}</div></div></div>
   </div>`;
-  if(G.phase === "done") h += resultHTML();
+  if(G.phase === "done") h += resultHTML() + reviewHTML();
   if(cfg.advice && myTurn) h += adviceHTML();
   if(cfg.prob && me.hole.length && !me.folded) h += probHTML();
   if(cfg.chart && me.hole.length) h += chartHTML();
@@ -727,6 +922,47 @@ const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "±") + fmt(Math.abs(n));
 function tierBadgeText(me){
   const info = handInfo(cs(me.hole[0]), cs(me.hole[1]));
   return `${info.name}（${TIER_LABEL[info.tier]}）`;
+}
+// 楕円テーブル：あなたが一番下、時計回り（左回り＝あなたの左隣が次）に座る
+function ringHTML(){
+  const P = G.players, n = P.length;
+  const W = 100, Hh = 100;               // %
+  const seat = (i, rx, ry) => { const a = (90 + i * 360 / n) * Math.PI / 180; return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a) }; };
+  const bd = [0,1,2,3,4].map(i => G.board[i] != null ? card(cs(G.board[i]), "bd") : `<span class="card bd empty"></span>`).join("");
+  let seats = "", bets = "";
+  P.forEach((p, i) => {
+    const pt = seat(i, 41, 41), bp = seat(i, 25, 23);
+    const pos = p.out ? { name:"" } : posInfo(p.id);
+    if(p.bet > 0 && !p.out) bets += `<div class="rg-bet" style="left:${bp.x}%;top:${bp.y}%"><i></i>${fmt(p.bet)}</div>`;
+    if(pos.name === "BTN"){ const dp = seat(i + 0.32, 30, 29); bets += `<div class="rg-dealer" style="left:${dp.x}%;top:${dp.y}%">D</div>`; }
+    seats += i === 0 ? mySeatHTML(p, pt, pos) : ringSeatHTML(p, pt, pos);
+  });
+  return `<div class="rg">
+    <div class="rg-felt"><div class="rg-pot">ポット <b>${fmt(potTotal())}</b></div><div class="rg-bd">${bd}</div>
+      <div class="rg-st">${G.phase === "done" ? "ハンド終了" : ["プリフロップ","フロップ","ターン","リバー"][G.street]}</div></div>
+    ${bets}${seats}
+  </div>`;
+}
+function ringSeatHTML(p, pt, pos){
+  if(p.out) return `<div class="rg-seat out" style="left:${pt.x}%;top:${pt.y}%"><div class="nm">${esc(p.name)}</div><div class="sub">敗退</div></div>`;
+  const turn = G.phase === "play" && G.toAct === p.id;
+  const show = p.shown || (ui.reveal && G.phase === "done");
+  const win = G.phase === "done" && p.won > 0;
+  const cards = p.folded && !show ? "" : `<div class="cards">${p.hole.map(c => show ? card(cs(c), "xs") : `<span class="card xs back"></span>`).join("")}</div>`;
+  return `<div class="rg-seat ${turn ? "turn" : ""} ${p.folded ? "fold" : ""} ${win ? "win" : ""}" style="left:${pt.x}%;top:${pt.y}%">
+    ${cards}
+    <div class="nm">${esc(p.name)}${pos.name ? `<span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span>` : ""}</div>
+    <div class="stk">${fmt(p.stack)}</div>
+    <div class="act">${turn ? "考え中…" : win ? `<b>+${fmt(p.won)}</b>` : p.act || p.style.n}${p.shown && p.score ? `・${CAT_NAME[catOf(p.score)]}` : ""}</div>
+  </div>`;
+}
+function mySeatHTML(p, pt, pos){
+  const turn = G.phase === "play" && G.toAct === 0, win = G.phase === "done" && p.won > 0;
+  return `<div class="rg-seat me ${turn ? "turn" : ""} ${p.folded ? "fold" : ""} ${win ? "win" : ""}" style="left:${pt.x}%;top:${pt.y}%">
+    <div class="nm">あなた<span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span></div>
+    <div class="stk">${fmt(p.stack)}</div>
+    <div class="act">${turn ? "あなたの番" : win ? `<b>+${fmt(p.won)}</b>` : p.act || "&nbsp;"}</div>
+  </div>`;
 }
 function seatHTML(p){
   const pos = posInfo(p.id);
@@ -848,6 +1084,7 @@ window.Practice = {
   next(){ ui.reveal = false; nextHand(); window.scrollTo(0, 0); },
   reveal(v){ ui.reveal = v; render(); },
   toggleLog(){ ui.showLog = !ui.showLog; render(); },
+  toggleReview(){ ui.review = !ui.review; render(); },
   // テスト用
   _sim(n){ return simulate(n); }
 };
