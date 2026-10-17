@@ -789,6 +789,7 @@ function reviewHTML(){
         <div><span>実際の勝率</span><b>${pctS(x.actual,0)}</b></div>
       </div>
       <p class="rv-why">${x.why}</p>
+      ${x.think ? `<details class="rv-th"><summary>この時の思考プロセスを見る</summary>${x.think}</details>` : ""}
     </div>`).join("");
   const opps = R.opp.map(o => `<div class="lg-p ${o.folded ? "f" : ""}"><span class="n">${esc(o.name)}${o.won > 0 ? ` <b class="plus">+${fmt(o.won)}</b>` : ""}</span><div class="cards">${o.hole.map(c => card(cs(c), "sm")).join("")}</div></div>`).join("");
   return `<div class="panel rv">
@@ -823,7 +824,8 @@ function human(type, to){
   G.decisions.push({ street:G.street, board:G.board.slice(), pot:a.pot, toCall:a.toCall, eq:a.eq, req:a.req, ev:a.ev,
     R:a.R, eqR:a.eqR, ip:a.ip, need:a.need, kind:a.kind, spot:a.spot,
     rec:a.rec, type:realType, amount:amt, pos:posInfo(0).name, liveIds: live().filter(p => p.id !== 0).map(p => p.id),
-    outs:a.outs, stack:me.stack + me.bet, bet:me.bet, currentBet:G.currentBet, bb:G.bb });
+    outs:a.outs, stack:me.stack + me.bet, bet:me.bet, currentBet:G.currentBet, bb:G.bb,
+    think: (() => { try{ return thinkCache && thinkCache.key === `${G.handNo}|${G.street}|${G.actions}` ? thinkCache.html : thinkHTML(thinking(a)); }catch(e){ return ""; } })() });
   ui.sizing = false;
   doAction(0, type, to);
 }
@@ -1013,6 +1015,36 @@ function css(){
   .rvr-eqt{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-top:4px;color:var(--sub)}
   .rvr-eqt b{color:var(--text);font-size:15px}
   .rvr-eqt .c{font-weight:800;color:var(--text)}
+  .th{display:grid;gap:0}
+  .th-st{display:grid;grid-template-columns:26px 1fr;gap:10px;position:relative;padding-bottom:12px}
+  .th-st:not(:last-child)::before{content:"";position:absolute;left:12px;top:26px;bottom:0;width:2px;background:linear-gradient(#4a3480,#22e4ff33)}
+  .th-n{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#ff2d95,#a64dff 50%,#22e4ff);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .th-c{min-width:0;font-size:13px;line-height:1.65}
+  .th-t{font-weight:900;font-size:14px;margin:2px 0 4px}
+  .th-c p{margin-bottom:3px}
+  .th-s{color:var(--sub);font-size:12px}
+  .th-kv{display:grid;grid-template-columns:86px 1fr;gap:2px 8px;padding:3px 0;border-top:1px dashed #26313d;font-size:12.5px}
+  .th-kv:first-of-type{border-top:none}
+  .th-kv span{color:var(--sub)}
+  .th-kv em{grid-column:2;font-style:normal;color:var(--sub);font-size:11.5px}
+  .th-pbar{position:relative;height:10px;border-radius:5px;margin:6px 0 8px;background:linear-gradient(90deg,#ff5468,#ffb020,#2fbf7a,#22e4ff)}
+  .th-pbar i{position:absolute;top:-4px;width:4px;height:18px;margin-left:-2px;background:#fff;border-radius:2px;box-shadow:0 0 6px #fff}
+  .th-ev{background:var(--panel2);border-radius:10px;padding:8px 10px;margin-bottom:6px;border:1px solid transparent}
+  .th-ev.best{border-color:#22e4ff;box-shadow:0 0 0 1px #22e4ff33}
+  .th-evh{display:flex;align-items:baseline;gap:8px}
+  .th-evh b{flex:1}
+  .th-evh span{font-weight:900;font-size:15px;font-variant-numeric:tabular-nums}
+  .th-evh small{color:var(--sub);font-size:11px}
+  .th-evb{position:relative;height:8px;margin:5px 0;background:#0e141a;border-radius:4px}
+  .th-evb::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#4a5866}
+  .th-evb i{position:absolute;top:0;bottom:0;border-radius:4px}
+  .th-evb i.p{background:linear-gradient(90deg,#1f8f63,#22e4ff)}
+  .th-evb i.n{background:linear-gradient(90deg,#ff5468,#8a2a3a)}
+  .th-concl{font-size:17px}
+  .th-tips{display:grid;gap:6px;margin-top:8px}
+  .th-tips div{font-size:12px;line-height:1.6;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:7px 10px}
+  .rv-th{margin-top:8px}
+  .rv-th summary{font-size:12px;font-weight:800;color:#b99bff;cursor:pointer;margin-bottom:8px}
   .wm{margin-top:10px;font-size:12px;line-height:1.7;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px}
   .wm b{color:#fff}
   .fm-rec{font-size:12px;font-weight:900;border-radius:999px;padding:3px 11px;margin-top:2px;white-space:nowrap}
@@ -1124,6 +1156,7 @@ function tableHTML(){
   if(G.over) return h + overHTML() + reviewHTML();
   // 相手
   h += ringHTML();
+  h += thinkPanelHTML();
   h += whyPanelHTML();
   h += rangePanelHTML();
   if(G.phase === "done") h += resultHTML() + reviewHTML();
@@ -1195,6 +1228,187 @@ function feltMeterHTML(){
     ${myTurn ? `<div class="fm-rec ${recCls}">${esc(a.rec.label)}</div>` : ""}
   </div>`;
 }
+// ---------------------------------------------------------------------
+//  プロの思考プロセス（状況整理 → レンジ → ボード → 手札の位置 → 数字 → 期待値比較 → 結論）
+// ---------------------------------------------------------------------
+function boardTexture(board){
+  if(board.length < 3) return null;
+  const suits = [0,0,0,0]; board.forEach(c => suits[c & 3]++);
+  const maxS = Math.max(...suits);
+  const ranks = board.map(c => c >> 2), uniq = [...new Set(ranks)].sort((a, b) => b - a);
+  const paired = uniq.length < ranks.length;
+  const top = uniq[0];
+  // つながり：3枚以内の幅に収まるカードの組
+  let conn = 0; const rs = new Set(uniq); if(rs.has(14)) rs.add(1);
+  for(let lo = 1; lo <= 10; lo++){ let n = 0; for(let r = lo; r < lo + 5; r++) if(rs.has(r)) n++; conn = Math.max(conn, n); }
+  const flushy = maxS >= 3 ? "モノトーン（同じマーク3枚以上）" : maxS === 2 ? "ツートーン（フラッシュドローあり）" : "レインボー（マークがバラバラ）";
+  const wet = (maxS >= 2 ? 1 : 0) + (conn >= 3 ? 1 : 0) + (maxS >= 3 ? 1 : 0) + (conn >= 4 ? 1 : 0);
+  const wetName = wet >= 2 ? "ウェット" : wet === 1 ? "ややウェット" : "ドライ";
+  const tags = [flushy, paired ? "ペアボード" : null, conn >= 3 ? "ストレートが絡みやすい" : "つながりが薄い", top >= 13 ? "A・Kハイ" : top <= 9 ? "ローカード中心" : "ミドル"].filter(Boolean);
+  return { wet, wetName, paired, top, maxS, conn, tags };
+}
+function blockerNotes(hole, board){
+  const out = [];
+  const suits = [0,0,0,0]; board.forEach(c => suits[c & 3]++);
+  const fs = suits.findIndex(n => n >= 3);
+  if(fs >= 0){
+    const hs = hole.filter(c => (c & 3) === fs).map(c => c >> 2);
+    if(hs.includes(14)) out.push("フラッシュになりうるマークのAを持っている（相手のナッツフラッシュを消している）");
+    else if(hs.length) out.push("フラッシュのマークを1枚持っていて、相手のフラッシュを少し減らしている");
+  }
+  if(board.length){
+    const top = Math.max(...board.map(c => c >> 2));
+    if(hole.some(c => c >> 2 === top)) out.push("トップカードと同じランクを持っていて、相手のトップペアを減らしている");
+  }else{
+    if(hole.some(c => c >> 2 === 14)) out.push("Aを持っているので、相手がAA・AKを持っている確率が下がる（ブロッカー）");
+    else if(hole.some(c => c >> 2 === 13)) out.push("Kを持っているので、相手のKK・AKが少し減る");
+  }
+  return out;
+}
+const STYLE_TIP = {
+  "タイト": "タイトな相手：参加している時点で強め。大きなベット・レイズには素直に降り、相手が降りやすいぶんブラフは少し多めでよい",
+  "ルース": "ルースな相手：弱い手札でも参加してくる。バリューベットを厚く（大きく）し、ブラフは減らす",
+  "アグレッシブ": "アグレッシブな相手：ブラフが多い。中くらいの強さの手札でブラフキャッチ（コール）を広めに、強い手札はチェックで誘う（トラップ）のも有効",
+  "バランス": "バランス型の相手：基本の理論（ポットオッズ・レンジ）どおりに打つのが最善"
+};
+function thinking(a){
+  const me = G.players[0], board = G.board, bb = G.bb;
+  const W = whyBreakdown(), X = rangeCompare();
+  const opp = W ? W.opp : primaryOpp();
+  const nOpp = live().length - 1;
+  const pot = a.pot, toCall = a.toCall;
+  const eff = Math.min(me.stack + me.bet, Math.max(...live().filter(p => p.id !== 0).map(p => p.stack + p.bet)));
+  const effBB = eff / bb, spr = (eff - me.bet) / Math.max(1, pot);
+  const pos = posInfo(0).name;
+  const pfr = G.opener >= 0 ? G.players[G.opener] : null;
+  const steps = [];
+  // 1. 状況整理
+  steps.push({ t:"状況を整理する", b:`
+    <div class="th-kv"><span>ポジション</span><b>${pos}・${a.ip ? "インポジション（後から行動できて有利）" : "アウトオブポジション（先に行動するので不利）"}</b></div>
+    <div class="th-kv"><span>有効スタック</span><b>${fmt(eff)}（${effBB.toFixed(0)}BB）</b></div>
+    ${G.street > 0 ? `<div class="th-kv"><span>SPR</span><b>${spr.toFixed(1)}</b><em>${spr < 3 ? "低い：トップペア以上ならオールインまで覚悟できる" : spr > 10 ? "高い：ワンペアで大きなポットを作らない" : "中くらい：2ペア以上でスタックを賭けるのが目安"}</em></div>` : ""}
+    <div class="th-kv"><span>相手</span><b>${nOpp}人${nOpp > 1 ? "（マルチウェイ：ブラフを減らし、強い手札に寄せる）" : "（ヘッズアップ）"}</b></div>
+    <div class="th-kv"><span>主導権</span><b>${pfr ? (pfr.id === 0 ? "あなた（プリフロップでレイズした人＝レンジが強いと思われている）" : `${esc(pfr.name)}（プリフロップでレイズした人）`) : "まだ誰もレイズしていない"}</b></div>` });
+  // 2. 相手のレンジ
+  if(opp){
+    const rg = oppRanges(0).find(r => r.name === opp.name);
+    const pct = rg ? rg.combos.length / COMBOS.length : 1;
+    const acts = [];
+    if(opp.pfRaises) acts.push(opp.id === G.opener ? `${posInfo(opp.id).name}からオープン` : "3ベット以上");
+    if(opp.pfCalls && !opp.limped) acts.push("レイズにコール"); if(opp.limped) acts.push("リンプ");
+    for(let st = 1; st <= G.street; st++) if(opp.aggr[st]) acts.push(`${STREET[st]}でベット／レイズ`);
+    const comp = X ? (X.post ? POST_CATS : PRE_CATS).filter(c => (X.op.cats[c.k] || 0) > 0.03).map(c => `${c.name.replace(/（.*）/, "")} ${pctS(X.op.cats[c.k], 0)}`).join("・") : "";
+    steps.push({ t:"相手のレンジを絞る", b:`
+      <p><b>${esc(opp.name)}</b>：${acts.length ? acts.join(" → ") : "まだ目立ったアクションなし"}</p>
+      <p>→ <b>${rg ? esc(rg.label) : "推定レンジ"}</b>（全体の約${pctS(pct, 0)}）${G.street > 0 && opp.aggr.slice(1, G.street + 1).some(Boolean) ? "。ベットしているので、ボードに絡んだ手札・ドローが中心" : ""}</p>
+      ${comp ? `<p class="th-s">中身：${comp}</p>` : ""}
+      <p class="th-s">${STYLE_TIP[opp.style.n]}</p>` });
+  }
+  // 3. ボード
+  const tx = boardTexture(board);
+  if(tx && X){
+    const ms = X.me.cats.st || 0, os = X.op.cats.st || 0;
+    const fav = X.rvr >= 0.53 ? "あなた" : X.rvr <= 0.47 ? esc(opp.name) : null;
+    steps.push({ t:"ボードを読む", b:`
+      <p><b>${tx.wetName}</b>なボード：${tx.tags.join("・")}</p>
+      <p>レンジ同士の勝率 あなた${pctS(X.rvr, 0)}：${esc(opp.name)}${pctS(1 - X.rvr, 0)} → ${fav ? `<b>${fav}のレンジ有利</b>` : "ほぼ互角"}。強い役の割合 あなた${pctS(ms, 0)}／相手${pctS(os, 0)}${ms > os + 0.03 ? "（ナッツ有利＝大きく打ちやすい）" : os > ms + 0.03 ? "（相手にナッツ有利＝大きなベットには警戒）" : ""}</p>
+      <p class="th-s">${tx.wet >= 2 ? "ウェットなボードは状況がすぐ変わる。強い手札は大きめ（2/3〜ポット）で打ってドローに代償を払わせる"
+        : tx.wet === 1 ? "ややウェットなボード：ドローが少しある。強い手札は1/2〜2/3ポットで、ドローには適度な代償を払わせる"
+        : "ドライなボードは状況が変わりにくい。主導権のある側は小さめ（1/3）で高頻度にベットできる"}${tx.paired ? "。ペアボードはスリーカード以上が少ないので、相手の大きなベットはブラフも混ざりやすい" : ""}</p>` });
+  }
+  // 4. 手札の位置
+  if(X && X.me.n){
+    const myV = board.length >= 3 ? evaluate(me.hole.concat(board)) : chen(me.hole[0], me.hole[1]);
+    const val = h => board.length >= 3 ? evaluate(h.concat(board)) : chen(h[0], h[1]);
+    let lower = 0; X.me.list.forEach(h => { if(val(h) < myV) lower++; });
+    const pctile = lower / X.me.n;
+    const draw = a.outs && a.outs.outs >= 8;
+    const role = a.eq >= 0.65 ? "バリュー（強い手札：お金を入れてもらいたい）"
+               : a.eq >= 0.4 ? "ブラフキャッチャー／ミドル（大きなポットは避け、相手のブラフを捕まえる役）"
+               : draw ? "ドロー（今は弱いが伸びる：セミブラフの候補）"
+               : "エア（ほぼ勝てない：あきらめるか、ブロッカーがあればブラフ）";
+    const bl = blockerNotes(me.hole, board);
+    steps.push({ t:"自分の手札の立ち位置", b:`
+      <p>あなたのレンジ（${esc(X.me.label)}）の中で <b>上位${pctS(1 - pctile, 0)}</b> の強さ</p>
+      <div class="th-pbar"><i style="left:${(pctile * 100).toFixed(1)}%"></i></div>
+      <p>役割：<b>${role}</b></p>
+      ${bl.length ? `<p class="th-s">ブロッカー：${bl.join("／")}</p>` : ""}` });
+  }
+  // 5. 数字
+  const mdf = toCall > 0 ? (pot - toCall) / pot : null;   // 相手のベット前のポットに対する比率
+  const betProbe = a.rec.type === "raise" && a.rec.to ? a.rec.to - me.bet : Math.round(pot * 0.66);
+  const bluffBE = betProbe / (pot + betProbe);
+  steps.push({ t:"数字で確かめる", b:`
+    <div class="th-kv"><span>勝率</span><b>${pctS(a.eq, 0)} × 実現率${a.R.toFixed(2)} = ${pctS(a.eqR, 0)}</b></div>
+    ${toCall > 0 ? `<div class="th-kv"><span>必要勝率</span><b>${pctS(a.need, 0)}</b><em>コール${fmt(toCall)}÷（ポット${fmt(pot)}＋コール）</em></div>
+    <div class="th-kv"><span>MDF</span><b>${pctS(mdf, 0)}</b><em>このベットに対してレンジの${pctS(mdf, 0)}以上で続けないと、相手のブラフが何でも儲かってしまう（自分のレンジでの目安）</em></div>` : ""}
+    <div class="th-kv"><span>ブラフ成功に必要な率</span><b>${pctS(bluffBE, 0)}</b><em>${fmt(betProbe)}を打つなら、相手が${pctS(bluffBE, 0)}以上降りればブラフでも得</em></div>
+    ${a.outs && a.outs.outs ? `<div class="th-kv"><span>アウツ</span><b>${a.outs.outs}枚</b><em>次で約${pctS(a.outs.next, 0)}（2倍ルール）${board.length === 3 ? `・リバーまで約${pctS(a.outs.byRiver, 0)}（4倍ルール）` : ""}</em></div>` : ""}` });
+  // 6. 期待値の比較
+  const opts = [];
+  if(toCall > 0) opts.push({ k:"fold", n:"フォールド", ev:0, note:"これ以上失わない（今までの投資は戻らない＝サンクコスト）" });
+  else opts.push({ k:"check", n:"チェック", ev: a.eqR * pot, note:"今の勝率ぶんポットを取れる見込み（無料で次へ）" });
+  if(toCall > 0) opts.push({ k:"call", n:`コール ${fmt(toCall)}`, ev: a.ev, note:`勝率${pctS(a.eqR,0)}×（ポット＋コール）−コール` });
+  if(me.stack > toCall && live().some(p => p.id !== 0 && !p.allin)){
+    const raiseTo = a.rec.type === "raise" && a.rec.to ? a.rec.to : (G.currentBet ? Math.round(G.currentBet * 2.5) : Math.round(pot * 0.66));
+    const invest = Math.min(raiseTo, me.bet + me.stack) - me.bet;
+    let fe, eqC;
+    if(board.length >= 3 && X){
+      const c = X.op.cats;
+      fe = (c.ai || 0) * (toCall ? 0.95 : 0.85) + (c.wp || 0) * (toCall ? 0.6 : 0.45) + (c.dr || 0) * (toCall ? 0.35 : 0.2);
+      const cont = X.op.list.filter(h => { const k = postCat(h, board); return k === "st" || k === "tp" || (k === "wp" && rnd() < 0.4) || (k === "dr" && rnd() < 0.7); });
+      eqC = cont.length ? equityRange(me.hole, board, [{ combos: cont, aggr: [] }], 900) : a.eq;
+    }else{
+      fe = toCall ? (G.raiseCount >= 2 ? 0.35 : 0.5) : 0.45;
+      const top = rangePct(G.raiseCount >= 1 ? 0.08 : 0.2);
+      eqC = equityRange(me.hole, board, [{ combos: top, aggr: [] }], 900);
+    }
+    fe = Math.pow(Math.min(0.95, fe), nOpp);
+    const callAdd = Math.max(0, invest + me.bet - G.currentBet);
+    const potIfCalled = pot + invest + callAdd;
+    const evR = fe * pot + (1 - fe) * (eqC * a.R * potIfCalled - invest);
+    opts.push({ k:"raise", n:`${G.currentBet ? "レイズ" : "ベット"} ${fmt(invest + me.bet)}`, ev: evR,
+      note:`相手が降りる確率 約${pctS(fe,0)}（レンジの弱い手札の割合から推定）× ポット ＋ 続けられた時（勝率${pctS(eqC,0)}）の損得` });
+  }
+  const best = opts.reduce((x, y) => y.ev > x.ev ? y : x, opts[0]);
+  const maxAbs = Math.max(1, ...opts.map(o => Math.abs(o.ev)));
+  const recK = a.rec.type === "check" ? (toCall ? "call" : "check") : a.rec.type;
+  if(a.kind === "open" || a.kind === "push") steps.push({ t:"選択肢を比べる", b:`<p>${a.kind === "push" ? "ショートスタックは「オールインかフォールド」の2択。勝率と相手が降りる確率で決まる" : "誰もレイズしていない場面は、オープンレンジ表がそのまま答え。プロは<b>リンプ（コールで参加）をせず、レイズかフォールドの2択</b>にする"}</p>
+    <p class="th-s">理由：レイズすれば相手が降りてそのまま取れることがあり、参加する時は主導権も握れる。表はポジションごとに、この2択の期待値がプラスになる手札をまとめたもの</p>` });
+  else steps.push({ t:"選択肢の期待値を比べる", b: opts.map(o => `<div class="th-ev ${o === best ? "best" : ""}">
+      <div class="th-evh"><b>${o.n}</b><span class="${o.ev >= 0 ? "plus" : "minus"}">${o.ev >= 0 ? "+" : "−"}${fmt(Math.abs(o.ev))}</span><small>${(o.ev / bb >= 0 ? "+" : "") + (o.ev / bb).toFixed(1)}BB</small></div>
+      <div class="th-evb"><i class="${o.ev >= 0 ? "p" : "n"}" style="width:${(Math.abs(o.ev) / maxAbs * 50).toFixed(1)}%;${o.ev >= 0 ? "left:50%" : `right:50%`}"></i></div>
+      <div class="th-s">${o.note}</div></div>`).join("") + `<p class="th-s" style="margin-top:6px">期待値は「このアクションを何度も繰り返した時の1回あたりの平均の損得」。プリフロップのレイズの降りる確率は一般的な目安です${best.k !== recK && !(best.k === "check" && recK === "call") ? "。この簡易計算と結論が違う時は、レンジ全体のバランス（同じ場面で持つ他の手札との打ち分け）を優先しています" : ""}</p>` });
+  // 7. 結論とプロの考え方
+  const tips = [];
+  if(G.tour && effBB <= 15) tips.push("15BB以下は「プッシュかフォールド」。小さくレイズして降りるのが一番の損");
+  if(G.street === 0 && !a.ip && a.kind === "defend") tips.push("アウトオブポジションでのコールは勝率を回収しにくい。迷ったら「3ベットかフォールド」に寄せるのがプロの基本");
+  if(G.street === 0 && a.kind === "open") tips.push("前のポジションほど後ろに多くの人が残るのでタイトに、BTNに近いほど広くオープンする");
+  if(nOpp > 1) tips.push("マルチウェイでは誰かが強い手札を持っている確率が上がる。ブラフは控え、バリューは強い手札に絞る");
+  if(tx && pfr && pfr.id === 0 && nOpp === 1 && tx.wet < 2) tips.push("自分がプリフロップでレイズした側で、ドライなボード：小さいCベット（1/3）を高い頻度で打つのが基本");
+  if(spr < 3 && G.street > 0 && a.eq >= 0.5) tips.push("SPRが低いので、強めの手札ならスタックを入れきる前提で。中途半端に降りない");
+  if(spr > 10 && G.street > 0 && a.eq < 0.65 && a.eq >= 0.4) tips.push("SPRが高く手札が中くらい：ポットを大きくしない（チェックやコールで小さく保つ）");
+  if(G.street === 3 && toCall > pot * 0.6) tips.push("リバーの大きなベットはバリュー寄りになりやすい。ブロッカーを持つ時だけ広めにコール");
+  if(a.outs && a.outs.outs >= 8 && board.length < 5) tips.push("強いドローはセミブラフに最適。相手を降ろせなくても完成すれば勝てる「2つの勝ち方」がある");
+  if(opp && STYLE_TIP[opp.style.n] && tips.length < 2) tips.push(STYLE_TIP[opp.style.n]);
+  if(!tips.length) tips.push("結果ではなく判断で評価する。期待値がプラスの選択を繰り返せば、長期的に勝てる");
+  steps.push({ t:"結論", b:`<p class="th-concl"><b>${esc(a.rec.label)}</b></p><p class="th-s">${a.rec.reason}</p>
+    <div class="th-tips">${tips.slice(0, 4).map(t => `<div>${t}</div>`).join("")}</div>` });
+  return steps;
+}
+function thinkHTML(steps){
+  return `<div class="th">${steps.map((s, i) => `<div class="th-st"><div class="th-n">${i + 1}</div><div class="th-c"><div class="th-t">${s.t}</div>${s.b}</div></div>`).join("")}</div>`;
+}
+let thinkCache = null;
+function thinkPanelHTML(){
+  const me = G.players[0];
+  if(!cfg.advice || G.phase !== "play" || G.toAct !== 0 || !me.hole.length) return "";
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(!thinkCache || thinkCache.key !== key){ thinkCache = { key, html: thinkHTML(thinking(advise())) }; }
+  return `<div class="panel think"><div class="ptitle">プロの思考プロセス<span class="sp"></span><button class="btn sm" onclick="Practice.toggleThink()">${ui.think === false ? "開く" : "閉じる"}</button></div>
+    ${ui.think === false ? `<p class="sub">状況整理から結論までの7ステップ</p>` : thinkCache.html}</div>`;
+}
+
 // ---------------------------------------------------------------------
 //  なぜこの勝率？（相手レンジの内訳と、リード／逆転の分解）
 // ---------------------------------------------------------------------
@@ -1289,7 +1503,8 @@ function hasDraw(h, board){
 }
 function postCat(h, board){
   const v = evaluate(h.concat(board)), cat = catOf(v), bcat = catOf(evaluate(board));
-  if(cat >= 2 && cat > bcat) return "st";
+  // 強い役：ボードのペアを借りただけのツーペアは除く（手札で作った役だけ）
+  if((cat >= 3 && cat > bcat) || (cat === 2 && bcat === 0)) return "st";
   const top = Math.max(...board.map(c => c >> 2));
   const r1 = h[0] >> 2, r2 = h[1] >> 2;
   const br = board.map(c => c >> 2);
@@ -1691,6 +1906,7 @@ window.Practice = {
   reveal(v){ ui.reveal = v; render(); },
   toggleLog(){ ui.showLog = !ui.showLog; render(); },
   toggleReview(){ ui.review = !ui.review; render(); },
+  toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
   browser(){ rb.cell = null; if(G && G.players && G.players[0].hole.length){ const p = posInfo(0).name; if(PF_ORDER.includes(p)) rb.hero = p; const o = G.opener >= 0 ? posInfo(G.opener).name : null; if(o) rb.opener = o; }
     openModal(browserHTML()); },
   rb(k, v){ rb[k] = k === "size" ? Number(v) : v; rb.cell = null; openModal(browserHTML()); },
