@@ -95,7 +95,7 @@ function startHand(){
   G.button = b;
   G.seats = seatOrder();                        // ボタンから時計回り
   G.deck = shuffle(ALL.slice());
-  G.board = []; G.street = 0; G.result = null; G.raiseCount = 0; G.actions = 0;
+  G.board = []; G.street = 0; G.result = null; G.raiseCount = 0; G.actions = 0; G.opener = -1; G.pfSpot = null;
   G.log = []; G.decisions = []; G.review = null; ui.review = true;
   G.startStacks = G.players.map(p => p.stack + p.total); G.stack0 = G.players[0].stack;
   addLog(`ハンド #${G.handNo}　ブラインド ${fmt(G.sb)}/${fmt(G.bb)}${G.ante ? `　アンティ ${fmt(G.ante)}` : ""}`);
@@ -171,7 +171,7 @@ function doAction(seat, type, to){
     if(raiseBy > 0){
       if(raiseBy >= G.minRaise){ G.minRaise = raiseBy; G.players.forEach(q => { if(q !== p) q.acted = false; }); }
       G.currentBet = Math.max(G.currentBet, to);
-      if(G.street === 0){ G.raiseCount++; p.pfRaises++; }
+      if(G.street === 0){ if(G.raiseCount === 0) G.opener = seat; G.raiseCount++; p.pfRaises++; }
       p.aggr[G.street] = true;
     }
     addLog(`${p.name}：${p.act} ${fmt(p.bet)}`);
@@ -313,16 +313,75 @@ function equityRandom(hole, board, nOpp, iters){
   }
   return win / iters;
 }
+// ---------------------------------------------------------------------
+//  レンジ（13×13の表）とコンボ
+// ---------------------------------------------------------------------
+const ridx = c => 14 - (c >> 2);                          // A=0 … 2=12（表の行・列）
+function rcOf(a, b){
+  const i = ridx(a), j = ridx(b);
+  if(i === j) return [i, i];
+  const hi = Math.min(i, j), lo = Math.max(i, j);
+  return (a & 3) === (b & 3) ? [hi, lo] : [lo, hi];       // スーテッド＝右上、オフスート＝左下
+}
+const clsName = (r, c) => r === c ? RANKS[r] + RANKS[c] : r < c ? RANKS[r] + RANKS[c] + "s" : RANKS[c] + RANKS[r] + "o";
+const clsWeight = (r, c) => r === c ? 6 : r < c ? 4 : 12;
+function repCombo(r, c){
+  const ra = 14 - r, rb = 14 - c;
+  if(r === c) return [(ra << 2) | 0, (ra << 2) | 1];
+  if(r < c) return [(ra << 2) | 0, (rb << 2) | 0];
+  return [(rb << 2) | 0, (ra << 2) | 1];
+}
+const COMBOS = []; for(let i = 0; i < 52; i++) for(let j = i + 1; j < 52; j++) COMBOS.push([ALL[i], ALL[j]]);
+const COMBOS_BY_CHEN = COMBOS.slice().sort((x, y) => chen(y[0], y[1]) - chen(x[0], x[1]));
+const rangeMemo = {};
+function rangeChart(tier){          // 写真のチャートで、そのポジションからオープンする範囲
+  const k = "c" + tier;
+  return rangeMemo[k] || (rangeMemo[k] = COMBOS.filter(([a, b]) => { const [r, c] = rcOf(a, b); return TIERS[CHART[r][c]] <= tier; }));
+}
+function rangePct(pct){             // 強さ上位◯%
+  const k = "p" + pct;
+  return rangeMemo[k] || (rangeMemo[k] = pct >= 1 ? COMBOS : COMBOS_BY_CHEN.slice(0, Math.max(6, Math.round(COMBOS.length * pct))));
+}
+const POS_TIER = { "UTG":0, "UTG+1":1, "UTG+2":1, "LJ":2, "HJ":2, "CO":3, "BTN":4, "SB":3, "BB":4 };
+const PF_ORDER = ["UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN","SB","BB"];
+const POST_ORDER = ["SB","BB","UTG","UTG+1","UTG+2","LJ","HJ","CO","BTN"];
+const ipVs = (hero, opp) => POST_ORDER.indexOf(hero) > POST_ORDER.indexOf(opp);
+// ゲーム中：あなたが残っている相手全員より後に行動できるか（インポジション）
+function heroIP(){
+  const order = G.seats.slice(1).concat(G.seats[0]);
+  const ids = live().map(p => p.id);
+  return order.filter(i => ids.includes(i)).slice(-1)[0] === 0;
+}
+// 実現率（エクイティ・リアライゼーション）：勝率のうち、実際に回収できる割合の目安
+function realize(ip, street, a, b, eq){
+  if(street >= 3) return 1;
+  let R = ip ? [1.03, 1.04, 1.02][street] : [0.79, 0.85, 0.92][street];
+  if(street === 0 && eq != null) R += (eq - 0.45) * 0.35;      // 強い手札ほど勝率を回収しやすい
+  if(street === 0 && a != null){
+    const r1 = a >> 2, r2 = b >> 2, suited = (a & 3) === (b & 3), pair = r1 === r2, gap = Math.abs(r1 - r2) - 1, hi = Math.max(r1, r2);
+    if(suited) R += 0.06;
+    if(pair) R += 0.03;
+    if(!pair && gap <= 1) R += 0.03;
+    if(!suited && !pair) R -= 0.03;
+    if(!suited && !pair && gap >= 3) R -= 0.10;
+    if(!suited && !pair && hi < 10) R -= 0.06;
+  }
+  return Math.max(0.5, Math.min(1.15, R));
+}
+const rText = (R, ip) => `${ip ? "インポジション" : "アウトオブポジション"}の実現率${R.toFixed(2)}`;
+
 // 相手のアクションからレンジを推定（あなたへのアドバイス用）
 function oppRanges(meSeat){
   return live().filter(p => p.id !== meSeat).map(p => {
-    let pct;
-    if(p.pfRaises >= 2) pct = 0.05;
-    else if(p.pfRaises === 1) pct = G.raiseCount >= 2 ? 0.08 : 0.18;
-    else if(p.pfCalls > 0 && !p.limped) pct = 0.30;
-    else if(p.limped) pct = 0.55;
-    else pct = 1;
-    return { thr: thrFor(pct), pct, aggr: p.aggr.slice() };
+    const pos = posInfo(p.id).name;
+    let combos, label;
+    if(p.id === G.opener && p.pfRaises === 1 && G.raiseCount === 1){ combos = rangeChart(POS_TIER[pos] ?? 4); label = `${pos}のオープンレンジ`; }
+    else if(p.pfRaises >= 1 && (p.id !== G.opener || p.pfRaises >= 2)){ combos = rangePct(G.raiseCount >= 3 ? 0.03 : 0.06); label = "3ベット以上のレンジ"; }
+    else if(p.id === G.opener){ combos = rangePct(0.12); label = "3ベットにコールしたレンジ"; }
+    else if(p.pfCalls > 0 && !p.limped){ combos = rangePct(0.22); label = "レイズにコールしたレンジ"; }
+    else if(p.limped){ combos = rangePct(0.5); label = "リンプしたレンジ"; }
+    else { combos = COMBOS; label = "すべての手札"; }
+    return { combos, label, aggr: p.aggr.slice(), name: p.name };
   });
 }
 function improves(hole, boardPart){
@@ -331,23 +390,27 @@ function improves(hole, boardPart){
   const cnt = [0,0,0,0]; hole.concat(boardPart).forEach(c => cnt[c & 3]++);
   return hole.some(c => cnt[c & 3] >= 4);
 }
-function equityRange(hole, board, ranges, iters){
-  const known = new Set(hole.concat(board));
-  const deck = ALL.filter(c => !known.has(c));
+function equityRange(hole, board, ranges, iters, street){
+  if(street == null) street = G ? G.street : 0;
+  const blocked = new Uint8Array(64); hole.concat(board).forEach(c => blocked[c] = 1);
+  const deck = ALL.filter(c => !blocked[c]);
   const mark = new Int32Array(64);
   let win = 0;
   for(let it = 1; it <= iters; it++){
+    const free = c => !blocked[c] && mark[c] !== it;
     const pick = () => { for(;;){ const c = deck[Math.floor(rnd() * deck.length)]; if(mark[c] !== it){ mark[c] = it; return c; } } };
     const hands = ranges.map(r => {
-      for(let t = 0; t < 40; t++){
-        const a = pick(), b = pick();
-        let ok = chen(a, b) >= r.thr;
-        if(ok) for(let s = 1; s <= G.street && s <= 3; s++){
-          if(r.aggr[s] && !improves([a, b], board.slice(0, s + 2))){ ok = false; break; }
+      for(let t = 0; t < 30; t++){
+        const h = r.combos[Math.floor(rnd() * r.combos.length)];
+        if(!free(h[0]) || !free(h[1])) continue;
+        let ok = true;
+        for(let s = 1; s <= street && s <= 3 && board.length >= s + 2; s++){
+          if(r.aggr[s] && !improves(h, board.slice(0, s + 2))){ ok = false; break; }
         }
-        if(ok || t === 39) return [a, b];
-        mark[a] = 0; mark[b] = 0;
+        if(!ok && t < 29) continue;
+        mark[h[0]] = it; mark[h[1]] = it; return h;
       }
+      return [pick(), pick()];
     });
     const bd = board.slice(); while(bd.length < 5) bd.push(pick());
     const mine = evaluate(hole.concat(bd));
@@ -356,6 +419,54 @@ function equityRange(hole, board, ranges, iters){
     if(!lose) win += 1 / ties;
   }
   return win / iters;
+}
+
+// ---------------------------------------------------------------------
+//  ディフェンス表（レイズを受けた時のコール／3ベット／フォールド）
+//   相手のオープンレンジ・レイズ額・デッドマネー・実現率から計算
+// ---------------------------------------------------------------------
+function decideDef(eq, eqR, need, name, openTier){
+  if(eq >= (openTier >= 3 ? 0.56 : 0.60)) return "3bet";                               // バリュー3ベット
+  if(openTier >= 3 && /^(A[2-5]s|K[5-9]s|[QJ]9s|T8s|97s|65s|54s)$/.test(name) && eqR < need + 0.10 && eqR >= need - 0.06) return "3bet";   // ブロッカー・プレイアビリティのあるブラフ3ベット
+  if(eqR >= need) return "call";
+  return "fold";
+}
+const defMemo = {};
+function defenseChart(o){
+  // o: { hero, opener, openBB, postedBB, potBB, behind, callers }
+  const key = JSON.stringify(o);
+  if(defMemo[key]) return defMemo[key];
+  const tier = POS_TIER[o.opener] ?? 4, range = rangeChart(tier);
+  const ip = ipVs(o.hero, o.opener);
+  const toCall = o.openBB - o.postedBB;
+  const req = toCall / (o.potBB + toCall);
+  const margin = 0.015 * o.behind + 0.02 * o.callers;
+  const need = req + margin;
+  const grid = []; const w = { "3bet":0, call:0, fold:0 }; let tot = 0;
+  for(let r = 0; r < 13; r++){ grid.push([]); for(let c = 0; c < 13; c++){
+    const [a, b] = repCombo(r, c), name = clsName(r, c);
+    const eq = equityRange([a, b], [], [{ combos: range, aggr: [] }], 420, 0);
+    const R = realize(ip, 0, a, b, eq), eqR = eq * R;
+    const act = decideDef(eq, eqR, need, name, tier);
+    grid[r].push({ eq, R, eqR, act, name });
+    w[act] += clsWeight(r, c); tot += clsWeight(r, c);
+  }}
+  const res = { grid, req, need, margin, ip, tier, toCall, o, freq: { r3: w["3bet"] / tot, call: w.call / tot, fold: w.fold / tot } };
+  defMemo[key] = res;
+  return res;
+}
+// 今の場面（あなたがレイズを1回受けた時）のパラメータ
+function currentDefSpot(){
+  const me = G.players[0], bb = G.bb;
+  const opener = G.players[G.opener];
+  const order = G.seats;                                  // ボタンから
+  const pfOrder = order.slice(3).concat(order.slice(0, 3)); // UTG…BTN,SB,BB（3人以上）
+  const pfo = order.length === 2 ? [order[0], order[1]] : pfOrder;
+  const myIdx = pfo.indexOf(0);
+  const behind = pfo.slice(myIdx + 1).filter(i => !G.players[i].folded && i !== G.opener).length;
+  const callers = live().filter(p => p.id !== 0 && p.id !== G.opener && p.pfCalls > 0).length;
+  return { hero: posInfo(0).name, opener: posInfo(opener.id).name, openerName: opener.name,
+    openBB: +(G.currentBet / bb).toFixed(2), postedBB: +(me.bet / bb).toFixed(2), potBB: +(potTotal() / bb).toFixed(2), behind, callers };
 }
 
 // ---------------------------------------------------------------------
@@ -434,54 +545,83 @@ function advise(){
   const hole = me.hole, board = G.board, bb = G.bb;
   const toCall = Math.min(G.currentBet - me.bet, me.stack), pot = potTotal();
   const ranges = oppRanges(0);
-  const eq = equityRange(hole, board, ranges, ranges.length > 3 ? 1500 : 2500);
+  let eq = equityRange(hole, board, ranges, ranges.length > 3 ? 1500 : 2500);
   const req = toCall > 0 ? toCall / (pot + toCall) : 0;
-  const ev = eq * (pot + toCall) - toCall;
   const maxTo = me.bet + me.stack, minTo = Math.min(G.currentBet + G.minRaise, maxTo);
   const clamp = x => Math.min(maxTo, Math.max(minTo, Math.round(x / 5) * 5));
-  const R = (type, label, to, reason) => ({ type, label, to: to != null ? clamp(to) : null, reason });
-  let rec;
+  const Rc = (type, label, to, reason) => ({ type, label, to: to != null ? clamp(to) : null, reason });
+  let rec, kind = "post", need = req, spot = null, ip, R;
   const stackBB = (me.stack + me.bet) / bb;
   const outs = outsInfo(hole, board);
   if(G.street === 0){
     const info = handInfo(cs(hole[0]), cs(hole[1])), pos = posInfo(0), ch = chen(hole[0], hole[1]);
     const limpers = live().filter(q => q.limped && q.id !== 0).length;
+    const opener = G.opener >= 0 ? G.players[G.opener] : null;
+    ip = opener ? ipVs(pos.name, posInfo(opener.id).name) : heroIP();
+    R = realize(ip, 0, hole[0], hole[1]);
     if(stackBB <= 15 && G.tour){
+      kind = "push";
       const th = 6 + stackBB * 0.25 + (G.raiseCount ? 2 : 0);
-      rec = ch >= th ? R("raise", "オールイン", maxTo, `残り${stackBB.toFixed(1)}BBのショートスタック。プッシュ／フォールドで戦う局面で、この手札はオールインできる強さです`)
-                     : toCall === 0 ? R("check", "チェック", null, "ショートスタックで手札が弱いので、無料で見られるならチェック")
-                     : R("fold", "フォールド", null, `ショートスタックでは弱い手札でチップを使わず、強い手札でのオールインを待ちます`);
+      rec = ch >= th ? Rc("raise", "オールイン", maxTo, `残り${stackBB.toFixed(1)}BBのショートスタック。プッシュ／フォールドで戦う局面で、この手札はオールインできる強さです（ショートスタックでは実現率の問題がなくなるため、勝率そのもので判断します）`)
+                     : toCall === 0 ? Rc("check", "チェック", null, "ショートスタックで手札が弱いので、無料で見られるならチェック")
+                     : Rc("fold", "フォールド", null, `ショートスタックでは弱い手札でチップを使わず、強い手札でのオールインを待ちます`);
+      R = 1;
     }else if(G.raiseCount === 0){
-      if(info.tier <= pos.tier) rec = R("raise", `レイズ ${fmt((2.5 + limpers) * bb)}`, (2.5 + limpers) * bb,
-          `${info.name} は ${pos.name} からオープンできる範囲（チャートの${TIER_LABEL[info.tier]}）。${limpers ? `リンパーが${limpers}人いるので1人につき1BB足します` : "2.5BBでオープン"}`);
-      else if(toCall === 0) rec = R("check", "チェック", null, "BBで誰もレイズしていないので、無料でフロップを見ます");
-      else rec = R("fold", "フォールド", null, `${info.name} は ${pos.name} のオープン範囲外です`);
+      kind = "open";
+      if(pos.name === "BB" && toCall === 0 && info.tier > 1) rec = Rc("check", "チェック", null, `BBでリンプが入っただけの場面。${info.name} はアイソレーション（リンパーを狙ったレイズ）するほど強くないので、無料でフロップを見ます`);
+      else if(info.tier <= pos.tier) rec = Rc("raise", `レイズ ${fmt((2.5 + limpers) * bb)}`, (2.5 + limpers) * bb,
+          `${info.name} は ${pos.name} からオープンできる範囲（オープンレンジ表の${TIER_LABEL[info.tier]}）。${limpers ? `リンパーが${limpers}人いるので1人につき1BB足します` : "2.5BBでオープン"}`);
+      else if(toCall === 0) rec = Rc("check", "チェック", null, "BBで誰もレイズしていないので、無料でフロップを見ます");
+      else rec = Rc("fold", "フォールド", null, `${info.name} は ${pos.name} のオープンレンジ外。誰もレイズしていない場面では、オープンできない手札はコール（リンプ）せずに降りるのが基本です`);
     }else if(G.raiseCount === 1){
-      const strong = ch >= 12;
-      if(strong || eq >= 0.58) rec = R("raise", `3ベット ${fmt(G.currentBet * 3)}`, G.currentBet * 3, `レイズした相手の推定レンジ（上位約18%）に対しても勝率${pctS(eq,0)}と十分高いので、3ベットで価値を取ります`);
-      else if(eq >= req - (info.pair || info.suited ? 0.04 : 0)) rec = R("call", `コール ${fmt(toCall)}`, null, `必要勝率${pctS(req,0)}に対して勝率${pctS(eq,0)}。${info.pair || info.suited ? "ペア・スーテッドはフロップで強くなった時に大きく勝てる（インプライドオッズ）ので" : ""}コールが目安`);
-      else rec = R("fold", "フォールド", null, `必要勝率${pctS(req,0)}に対して勝率${pctS(eq,0)}で足りません`);
+      kind = "defend";
+      spot = currentDefSpot();
+      const dc = defenseChart(spot);
+      const openRange = [{ combos: rangeChart(dc.tier), aggr: [] }];
+      const eqOpen = equityRange(hole, [], openRange, 3000, 0);   // 表と同じく「オープンした人のレンジ」に対する勝率
+      eq = eqOpen; R = realize(ip, 0, hole[0], hole[1], eq);
+      const eqR = eq * R;
+      need = dc.need;
+      const act = decideDef(eqOpen, eqR, need, info.name, dc.tier);
+      // 表の自分のマスを、より正確な値で上書き（表とおすすめを一致させる）
+      dc.grid[info.row][info.col] = { eq, R, eqR, act, name: info.name };
+      const base = `${opener.name}（${spot.opener}）の${spot.openBB}BBオープンに対して、あなたは${spot.hero}（${ip ? "インポジション" : "アウトオブポジション"}）。${spot.opener}のオープンレンジに対する推定勝率${pctS(eq,0)} × 実現率${R.toFixed(2)} = ${pctS(eqR,0)}。必要勝率は${pctS(req,0)}（ブラインド・アンティ込みのポット${fmt(pot)}にコール${fmt(toCall)}）${dc.margin > 0 ? `に、後ろの人・他のコーラーの分の余裕${pctS(dc.margin,0)}を足して${pctS(need,0)}` : ""}`;
+      if(act === "3bet") rec = Rc("raise", `3ベット ${fmt(G.currentBet * (ip ? 3 : 3.5))}`, G.currentBet * (ip ? 3 : 3.5),
+        eqOpen >= 0.6 ? `${base}。オープンレンジに対して勝率${pctS(eqOpen,0)}と大きく有利なので、3ベットで価値を取ります${ip ? "" : "（アウトオブポジションなので3.5倍と大きめ）"}`
+                      : `${base}。この手札はコールとフォールドの境目にあり、Aや K を持っていて相手の強い手札を減らせる（ブロッカー）か、フロップで強くなりやすい形なので、ブラフの3ベットに回すのがセオリーです`);
+      else if(act === "call") rec = Rc("call", `コール ${fmt(toCall)}`, null, `${base}。実現後の勝率が必要勝率を上回るので、コールでディフェンスします`);
+      else rec = Rc("fold", "フォールド", null, `${base}。実現後の勝率が足りないのでフォールド`);
+      G.pfSpot = G.pfSpot || { kind, spot, hole: hole.slice() };
     }else{
+      kind = "vs3bet";
+      R = realize(ip, 0, hole[0], hole[1], eq);
       const premium = ch >= 14 || (hole.some(c => c >> 2 === 14) && hole.some(c => c >> 2 === 13));
-      if(premium) rec = R("raise", stackBB < 40 ? "オールイン" : `4ベット ${fmt(G.currentBet * 2.3)}`, stackBB < 40 ? maxTo : G.currentBet * 2.3, "QQ以上・AKは3ベットに対しても押し返せる強さです");
-      else if(eq >= req) rec = R("call", `コール ${fmt(toCall)}`, null, `相手のレンジはかなり強い（上位約8%）ですが、勝率${pctS(eq,0)}が必要勝率${pctS(req,0)}を上回ります`);
-      else rec = R("fold", "フォールド", null, `3ベット以上の強いレンジに対して勝率${pctS(eq,0)}では足りません`);
+      const eqR = eq * R;
+      if(premium) rec = Rc("raise", stackBB < 40 ? "オールイン" : `4ベット ${fmt(G.currentBet * 2.3)}`, stackBB < 40 ? maxTo : G.currentBet * 2.3, "QQ以上・AKは3ベットに対しても押し返せる強さです");
+      else if(eqR >= req) rec = Rc("call", `コール ${fmt(toCall)}`, null, `3ベット以上の強いレンジ（上位約6%）に対して、推定勝率${pctS(eq,0)} × ${rText(R, ip)} = ${pctS(eqR,0)} ≧ 必要勝率${pctS(req,0)}`);
+      else rec = Rc("fold", "フォールド", null, `3ベット以上の強いレンジ（上位約6%）に対して、推定勝率${pctS(eq,0)} × ${rText(R, ip)} = ${pctS(eqR,0)} は必要勝率${pctS(req,0)}に届きません`);
     }
+    if(kind === "open" && !G.pfSpot) G.pfSpot = { kind, pos: pos.name, hole: hole.slice() };
   }else{
+    ip = heroIP(); R = realize(ip, G.street);
+    const eqR = eq * R;
     const draw = outs && outs.outs >= 8 && board.length < 5;
+    const rq = `推定勝率${pctS(eq,0)} × ${rText(R, ip)} = ${pctS(eqR,0)}`;
     if(toCall > 0){
-      if(eq >= 0.72 && me.stack > toCall) rec = R("raise", `レイズ ${fmt(G.currentBet * 2.5)}`, G.currentBet * 2.5, `勝率${pctS(eq,0)}とかなり有利。レイズして価値を最大化します`);
-      else if(eq >= req) rec = R("call", `コール ${fmt(toCall)}`, null, `必要勝率${pctS(req,0)} ≦ 勝率${pctS(eq,0)}。コールの期待値はプラス（約${ev >= 0 ? "+" : ""}${fmt(ev)}）`);
-      else if(draw && eq + 0.06 >= req && me.stack > pot) rec = R("call", `コール ${fmt(toCall)}`, null, `今の勝率${pctS(eq,0)}は必要勝率${pctS(req,0)}に少し届きませんが、アウツ${outs.outs}枚のドローで、完成すれば大きく勝てる（インプライドオッズ）のでコール可`);
-      else rec = R("fold", "フォールド", null, `必要勝率${pctS(req,0)}に対して勝率${pctS(eq,0)}。コールの期待値はマイナス（約${fmt(ev)}）`);
+      if(eq >= 0.72 && me.stack > toCall) rec = Rc("raise", `レイズ ${fmt(G.currentBet * 2.5)}`, G.currentBet * 2.5, `推定勝率${pctS(eq,0)}とかなり有利。レイズして価値を最大化します`);
+      else if(eqR >= req) rec = Rc("call", `コール ${fmt(toCall)}`, null, `${rq} ≧ 必要勝率${pctS(req,0)}。コールの期待値はプラスです`);
+      else if(draw && eqR + 0.06 >= req && me.stack > pot) rec = Rc("call", `コール ${fmt(toCall)}`, null, `${rq}で必要勝率${pctS(req,0)}に少し届きませんが、アウツ${outs.outs}枚のドローで、完成すれば大きく勝てる（インプライドオッズ）のでコール可`);
+      else rec = Rc("fold", "フォールド", null, `${rq} ＜ 必要勝率${pctS(req,0)}。コールの期待値はマイナスです`);
     }else{
-      if(eq >= 0.65) rec = R("raise", `ベット ${fmt(pot * 0.66)}（2/3ポット）`, pot * 0.66, `勝率${pctS(eq,0)}と有利。弱い手札からもコールをもらえるサイズでバリューベット`);
-      else if(eq >= 0.52) rec = R("raise", `ベット ${fmt(pot * 0.33)}（1/3ポット）`, pot * 0.33, `勝率${pctS(eq,0)}でやや有利。小さめのベットで薄く価値を取ります（チェックも可）`);
-      else if(draw) rec = R("raise", `ベット ${fmt(pot * 0.5)}（セミブラフ）`, pot * 0.5, `今は弱いですが、アウツ${outs.outs}枚のドロー。相手が降りれば勝ち、コールされても完成の可能性があります`);
-      else rec = R("check", "チェック", null, `勝率${pctS(eq,0)}。無理に大きくせず、安く次のカードを見ます`);
+      if(eq >= 0.65) rec = Rc("raise", `ベット ${fmt(pot * 0.66)}（2/3ポット）`, pot * 0.66, `推定勝率${pctS(eq,0)}と有利。弱い手札からもコールをもらえるサイズでバリューベット`);
+      else if(eq >= 0.52) rec = Rc("raise", `ベット ${fmt(pot * 0.33)}（1/3ポット）`, pot * 0.33, `推定勝率${pctS(eq,0)}でやや有利。小さめのベットで薄く価値を取ります（チェックも可）`);
+      else if(draw) rec = Rc("raise", `ベット ${fmt(pot * 0.5)}（セミブラフ）`, pot * 0.5, `今は弱いですが、アウツ${outs.outs}枚のドロー。相手が降りれば勝ち、コールされても完成の可能性があります`);
+      else rec = Rc("check", "チェック", null, `推定勝率${pctS(eq,0)}。${ip ? "インポジションなので無理せずチェックで次のカードを見られます" : "アウトオブポジションで中途半端な手札は、チェックで様子を見ます"}`);
     }
   }
-  const val = { eq, req, ev, toCall, pot, rec, outs, ranges };
+  const eqR = eq * R;
+  const ev = eqR * (pot + toCall) - toCall;
+  const val = { eq, R, eqR, ip, req, need, ev, toCall, pot, rec, outs, ranges, kind, spot };
   cache.adv = { key, val };
   return val;
 }
@@ -563,8 +703,11 @@ function judge(d){
   const bbv = v => (v / d.bb).toFixed(1) + "BB";
   const rt = d.rec.type === "check" ? (d.toCall > 0 ? "call" : "check") : d.rec.type;
   const my = d.type, cls = t => t === "check" || t === "call" ? "pass" : t;
-  const margin = d.toCall > 0 ? d.eq - d.req : d.eq - 0.5;      // 判断のしきい値からの距離
-  const close = Math.abs(margin) < 0.05;
+  const need = d.need != null ? d.need : d.req;
+  const eqR = d.eqR != null ? d.eqR : d.eq;
+  const margin = d.toCall > 0 ? eqR - need : d.eq - 0.5;
+  const close = Math.abs(margin) < 0.04;
+  const calc = `推定勝率${pctS(d.eq,0)} × ${rText(d.R || 1, d.ip)} = ${pctS(eqR,0)}`;
   let grade, title, why;
   if(cls(my) === cls(rt)){
     grade = 3; title = "良い判断";
@@ -573,29 +716,28 @@ function judge(d){
       const ratio = d.amount / d.rec.to;
       if(ratio > 1.8 || ratio < 0.5){ grade = 2; title = "方向は正解・サイズに改善点"; why = `アクションはおすすめどおり。ただし金額 ${fmt(d.amount)} は目安 ${fmt(d.rec.to)} から離れています。${ratio > 1 ? "大きすぎると、弱い手札が降りて強い手札だけが残ります" : "小さすぎると、相手に安くドローを引かせてしまいます"}`; }
     }
-  }else if(d.street === 0 && (d.ev >= 0) === (rt === "fold")){
-    // プリフロップでチャート（ポジション）を根拠にした判断：数字より範囲が優先
-    grade = rt === "fold" ? 1 : 1; title = my === "fold" ? "降りすぎ" : my === "raise" ? "攻めすぎ" : "参加しすぎ";
-    if(my === "call" && rt === "fold" && d.toCall <= d.bb) title = "リンプ（コールで参加）";
-    why = `おすすめは「${d.rec.label}」。${d.rec.reason}。${my === "call" && rt === "fold" ? "勝率の数字は足りていても、後ろのポジションで不利に戦うことになるので、オープン範囲外の手札はレイズで参加しないなら降りるのが基本です" : ""}`;
-    if(my === "fold" && rt === "raise") why = `おすすめは「${d.rec.label}」。${d.rec.reason}`;
+  }else if(d.kind === "open"){
+    // 誰もレイズしていない場面：オープンレンジ表が基準
+    grade = 1;
+    title = my === "fold" ? "降りすぎ" : my === "raise" ? "オープンしすぎ" : "リンプ（コールで参加）";
+    if(my === "raise" && rt === "check"){ grade = 2; title = "攻めすぎ（悪くはない）"; }
+    why = `誰もレイズしていない場面なので、基準はオープンレンジ表です。おすすめは「${d.rec.label}」。${d.rec.reason}`;
   }else if(my === "fold"){
-    // 降りすぎ
     const lost = Math.max(0, d.ev);
     grade = close ? 2 : 0; title = close ? "ギリギリの判断（降りすぎ気味）" : "降りすぎ";
-    why = `勝率${pctS(d.eq,0)}は必要勝率${pctS(d.req,0)}を上回っていました。コールの期待値は約+${fmt(lost)}（${bbv(lost)}）で、フォールドでその分を手放しています`;
-    if(rt === "raise") why = `勝率${pctS(d.eq,0)}と有利な場面でした。${d.rec.label}が目安です`;
+    why = d.toCall > 0 ? `${calc} は必要勝率${pctS(need,0)}を上回っていました。コールの期待値は約+${fmt(lost)}（${bbv(lost)}）で、フォールドでその分を手放しています` : d.rec.reason;
+    if(rt === "raise") why = `おすすめは「${d.rec.label}」。${d.rec.reason}`;
   }else if(my === "call" && rt === "fold"){
     const lost = Math.max(0, -d.ev);
     grade = close ? 2 : 0; title = close ? "ギリギリの判断（コールしすぎ気味）" : "コールしすぎ";
-    why = `必要勝率${pctS(d.req,0)}に対して勝率${pctS(d.eq,0)}。このコールの期待値は約−${fmt(lost)}（${bbv(lost)}）です`;
-    if(d.outs && d.outs.outs >= 8) why += `。アウツ${d.outs.outs}枚のドローなので、相手から後で大きく取れるならギリギリ許容範囲`;
+    why = `${calc} に対して必要勝率${pctS(need,0)}。このコールの期待値は約−${fmt(lost)}（${bbv(lost)}）です`;
+    if(d.outs && d.outs.outs >= 8) why += `。アウツ${d.outs.outs}枚のドローなので、後で大きく取れるならギリギリ許容範囲`;
   }else if(my === "raise" && (rt === "fold" || rt === "check" || rt === "call")){
     grade = d.eq >= 0.45 || close ? 2 : 1; title = d.eq >= 0.45 ? "攻めすぎ（悪くはない）" : "攻めすぎ";
-    why = `勝率${pctS(d.eq,0)}で、目安は「${d.rec.label}」。${d.eq < 0.35 ? "ブラフとして使うなら、相手が降りやすいボードかどうか・アウツがあるかを意識しましょう" : "強さが中くらいの手札で大きくすると、強い手札にだけコールされがちです"}`;
+    why = `推定勝率${pctS(d.eq,0)}で、目安は「${d.rec.label}」。${d.eq < 0.35 ? "ブラフとして使うなら、相手が降りやすいボードかどうか・アウツやブロッカーがあるかを意識しましょう" : "中くらいの強さの手札で大きくすると、強い手札にだけコールされがちです"}`;
   }else if((my === "call" || my === "check") && rt === "raise"){
     grade = 2; title = "消極的";
-    why = `勝率${pctS(d.eq,0)}と有利でした。「${d.rec.label}」でもっと価値を取れた場面です`;
+    why = `おすすめは「${d.rec.label}」。${d.rec.reason}`;
   }else{
     grade = 2; title = "まずまず"; why = d.rec.reason;
   }
@@ -640,9 +782,10 @@ function reviewHTML(){
       <div class="rv-row"><span>あなた</span><b>${ACT_NAME[x.type]}${x.amount && x.type === "raise" ? ` ${fmt(x.amount)}` : x.type === "call" ? ` ${fmt(x.amount)}` : ""}</b>
         <span>おすすめ</span><b>${esc(x.rec.label)}</b></div>
       <div class="rv-nums">
-        <div><span>ポット</span><b>${fmt(x.pot)}</b></div>
         <div><span>推定勝率</span><b>${pctS(x.eq,0)}</b></div>
-        <div><span>必要勝率</span><b>${x.toCall ? pctS(x.req,0) : "—"}</b></div>
+        <div><span>実現率×</span><b>${x.R != null ? x.R.toFixed(2) : "—"}</b><span>${x.ip == null ? "" : x.ip ? "IP" : "OOP"}</span></div>
+        <div><span>実現後</span><b>${pctS(x.eqR != null ? x.eqR : x.eq,0)}</b></div>
+        <div><span>必要勝率</span><b>${x.toCall ? pctS(x.need != null ? x.need : x.req,0) : "—"}</b></div>
         <div><span>実際の勝率</span><b>${pctS(x.actual,0)}</b></div>
       </div>
       <p class="rv-why">${x.why}</p>
@@ -657,7 +800,7 @@ function reviewHTML(){
       ${items || `<p class="muted" style="margin-top:8px">このハンドではあなたの判断はありませんでした</p>`}
       <div class="ptitle" style="margin-top:12px">相手の手札<span class="sp"></span><small>薄い＝降りた人</small></div>
       <div class="lg-rows">${opps}</div>
-      <p class="sub" style="margin-top:10px">推定勝率＝その時点で分かっていた情報（相手のアクションから推定したレンジ）での勝率。実際の勝率＝相手の本当の手札に対する勝率（結果論）。判断の評価は推定勝率で行います</p>` : ""}
+      <p class="sub" style="margin-top:10px">推定勝率＝その時点で分かっていた情報（相手のアクションから推定したレンジ）での勝率。実現率＝ポジションや手札の形で、勝率のうち実際に回収できる割合の目安（IP＝インポジション、OOP＝アウトオブポジション）。判断は「実現後の勝率」と「必要勝率」で評価します。実際の勝率は相手の本当の手札に対する結果論の勝率です</p>` : ""}
   </div>`;
 }
 
@@ -678,6 +821,7 @@ function human(type, to){
   const toCall = Math.min(G.currentBet - me.bet, me.stack);
   const amt = realType === "raise" ? Math.min(to, me.bet + me.stack) : realType === "call" ? toCall : 0;
   G.decisions.push({ street:G.street, board:G.board.slice(), pot:a.pot, toCall:a.toCall, eq:a.eq, req:a.req, ev:a.ev,
+    R:a.R, eqR:a.eqR, ip:a.ip, need:a.need, kind:a.kind, spot:a.spot,
     rec:a.rec, type:realType, amount:amt, pos:posInfo(0).name, liveIds: live().filter(p => p.id !== 0).map(p => p.id),
     outs:a.outs, stack:me.stack + me.bet, bet:me.bet, currentBet:G.currentBet, bb:G.bb });
   ui.sizing = false;
@@ -737,6 +881,8 @@ function css(){
   .pr-me .info b{font-size:22px;font-variant-numeric:tabular-nums}
   .pr-me .info div{font-size:12px;color:var(--sub);margin-top:2px}
   .pr-adv .big{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+  .pr-adv .big.four{grid-template-columns:repeat(4,1fr);gap:5px}
+  .pr-adv .big.four b{font-size:17px}
   .pr-adv .big div{background:var(--panel2);border-radius:10px;padding:8px 4px;text-align:center}
   .pr-adv .big span{display:block;font-size:11px;color:var(--sub)}
   .pr-adv .big b{font-size:19px;font-variant-numeric:tabular-nums}
@@ -792,7 +938,7 @@ function css(){
   .rv-g.g0{background:#3a1820;color:#ff8a99}
   .rv-row{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;align-items:baseline;font-size:13px;margin-bottom:8px}
   .rv-row span{font-size:11px;color:var(--sub)}
-  .rv-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:8px}
+  .rv-nums{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px}
   .rv-nums div{background:var(--panel2);border-radius:8px;padding:6px 2px;text-align:center}
   .rv-nums span{display:block;font-size:10px;color:var(--sub)}
   .rv-nums b{font-size:14px;font-variant-numeric:tabular-nums}
@@ -828,6 +974,14 @@ function css(){
   .rg-bet i{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#fff 28%,#e0283c 30% 62%,#fff 64%);display:inline-block}
   .rg-dealer{position:absolute;transform:translate(-50%,-50%);z-index:1;width:18px;height:18px;border-radius:50%;background:#f2f2f2;color:#111;
     font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .hc.d3{background:#6d3fd6;color:#fff}.hc.dc{background:#2f8f46;color:#fff}.hc.df{background:#232c36;color:#5f6b78}
+  .d3t{color:#b99bff}.dct{color:#3ddc97}.dft{color:#8796a6}
+  .dlg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;font-weight:700;align-items:center}
+  .dlg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .dlg i.d3{background:#6d3fd6}.dlg i.dc{background:#2f8f46}.dlg i.df{background:#232c36;border:1px solid #3a4652}
+  .dme{margin-top:8px;font-size:13px;background:var(--panel2);border-radius:10px;padding:8px 10px;line-height:1.6}
+  .pr-seg.wrap{flex-wrap:wrap}
+  .pr-seg.wrap button{flex:1 0 auto;min-width:52px;padding:8px 6px;font-size:12px}
   .pr-tag{display:inline-block;font-size:10px;font-weight:800;border-radius:4px;padding:1px 5px;background:#26313d;color:var(--sub);margin-left:4px;vertical-align:1px}
   `;
   document.head.appendChild(st);
@@ -868,7 +1022,8 @@ function setupHTML(){
       <label class="pr-sw"><span>役の確率表を表示</span><input type="checkbox" ${cfg.prob ? "checked" : ""} onchange="Practice.set('prob',this.checked)"></label>
       <label class="pr-sw"><span>プリフロップ表を表示</span><input type="checkbox" ${cfg.chart ? "checked" : ""} onchange="Practice.set('chart',this.checked)"></label>
     </div>
-    <button class="btn primary big" style="margin-bottom:12px" onclick="Practice.start()">スタート</button>
+    <button class="btn primary big" style="margin-bottom:10px" onclick="Practice.start()">スタート</button>
+    <button class="btn big" style="margin-bottom:12px" onclick="Practice.browser()">レンジ表を見る（オープン・ディフェンス）</button>
     <div class="panel">
       <div class="ptitle">これまでの練習</div>
       <div class="kv">
@@ -978,14 +1133,16 @@ function seatHTML(p){
 }
 function adviceHTML(){
   const a = advise();
+  const good = a.toCall ? a.eqR >= a.need : a.eq >= 0.5;
   return `<div class="panel pr-adv">
-    <div class="ptitle">GTO的な目安<span class="sp"></span><small>相手${a.ranges.length}人のレンジを推定</small></div>
-    <div class="big">
-      <div><span>あなたの勝率</span><b style="color:${a.eq >= Math.max(a.req, 0.5) ? "#7ff0ff" : "inherit"}">${pctS(a.eq, 1)}</b></div>
-      <div><span>必要勝率</span><b>${a.toCall ? pctS(a.req, 1) : "—"}</b></div>
-      <div><span>コールの期待値</span><b class="${a.toCall ? (a.ev >= 0 ? "plus" : "minus") : ""}">${a.toCall ? (a.ev >= 0 ? "+" : "−") + fmt(Math.abs(a.ev)) : "—"}</b></div>
+    <div class="ptitle">GTO的な目安<span class="sp"></span><small>${a.ranges.map(r => r.label).filter((v, i, x) => x.indexOf(v) === i).join("・")}</small></div>
+    <div class="big four">
+      <div><span>推定勝率</span><b>${pctS(a.eq, 0)}</b></div>
+      <div><span>実現率</span><b>×${a.R.toFixed(2)}</b><span>${a.ip ? "インポジ" : "アウトオブ"}</span></div>
+      <div><span>実現後</span><b style="color:${good ? "#7ff0ff" : "inherit"}">${pctS(a.eqR, 0)}</b></div>
+      <div><span>必要勝率</span><b>${a.toCall ? pctS(a.need, 0) : "—"}</b></div>
     </div>
-    ${a.toCall ? `<p class="sub" style="margin-bottom:8px">必要勝率 = コール額 ${fmt(a.toCall)} ÷（ポット ${fmt(a.pot)} ＋ コール額）</p>` : ""}
+    ${a.toCall ? `<p class="sub" style="margin-bottom:8px">必要勝率 = コール ${fmt(a.toCall)} ÷（ブラインド・アンティ込みのポット ${fmt(a.pot)} ＋ コール）${a.need > a.req + 0.001 ? `＋ 後ろの人などの余裕 ${pctS(a.need - a.req, 0)}` : ""}。コールの期待値 ${a.ev >= 0 ? "+" : "−"}${fmt(Math.abs(a.ev))}</p>` : ""}
     ${a.outs && a.outs.outs ? `<p class="sub" style="margin-bottom:8px">アウツ ${a.outs.outs}枚：次のカードで ${pctS(a.outs.next, 0)}${G.board.length === 3 ? `・リバーまでに ${pctS(a.outs.byRiver, 0)}` : ""}</p>` : ""}
     <div class="pr-rec"><div class="h">おすすめアクション</div><div class="a">${a.rec.label}</div><div class="w">${a.rec.reason}</div></div>
   </div>`;
@@ -1000,20 +1157,116 @@ function probHTML(){
     <p class="sub" style="margin-top:8px">相手＝ランダムな手札の相手1人の場合。緑の行が今のあなたの役${t.beat != null ? `。相手1人が今あなたより強い確率：<b style="color:var(--text)">${pctS(t.beat, 1)}</b>` : ""}</p>
   </div>`;
 }
-function chartHTML(){
-  const me = G.players[0], mine = handInfo(cs(me.hole[0]), cs(me.hole[1])), pos = posInfo(0);
-  let cells = "";
+// 13×13の表を描く（cellFn(r,c) → { cls, title }）
+function gridHTML(cellFn, mine, onTap){
+  let h = "";
   for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){
-    const code = CHART[r][c], t = TIERS[code];
-    const name = r === c ? RANKS[r]+RANKS[c] : r < c ? RANKS[r]+RANKS[c]+"s" : RANKS[c]+RANKS[r]+"o";
-    const isMine = mine.row === r && mine.col === c;
-    cells += `<div class="hc ${code} ${t > pos.tier && !isMine ? "dim" : ""} ${isMine ? "mine" : ""}">${name}</div>`;
+    const x = cellFn(r, c);
+    const isMine = mine && mine[0] === r && mine[1] === c;
+    h += `<div class="hc ${x.cls} ${isMine ? "mine" : ""}" ${onTap ? `onclick="${onTap}(${r},${c})"` : ""}>${clsName(r, c)}</div>`;
   }
+  return `<div class="hgrid mini">${h}</div>`;
+}
+const DEF_CLS = { "3bet":"d3", call:"dc", fold:"df" };
+const DEF_NAME = { "3bet":"3ベット", call:"コール", fold:"フォールド" };
+function defLegend(dc){
+  return `<div class="dlg"><span><i class="d3"></i>3ベット ${pctS(dc.freq.r3,0)}</span><span><i class="dc"></i>コール ${pctS(dc.freq.call,0)}</span><span><i class="df"></i>フォールド ${pctS(dc.freq.fold,0)}</span>
+    <span class="sub">ディフェンス合計 ${pctS(dc.freq.r3 + dc.freq.call,0)}</span></div>`;
+}
+function openGrid(tier, mine){
+  return gridHTML((r, c) => { const code = CHART[r][c]; return { cls: `${code} ${TIERS[code] > tier ? "dim" : ""}` }; }, mine);
+}
+// あなたの手札 vs 各ポジションのオープン（同じレイズ額・デッドマネーで比較）
+function posTable(spot, hole){
+  const key = `${G.handNo}|pt|${JSON.stringify(spot)}`;
+  if(cache.pt && cache.pt.key === key) return cache.pt.val;
+  const heroI = PF_ORDER.indexOf(spot.hero);
+  const present = G.seats.map(i => posInfo(i).name);
+  const names = PF_ORDER.filter((p, i) => p !== spot.hero && (spot.hero === "BB" || i < heroI) && present.includes(p));
+  const info0 = handInfo(cs(hole[0]), cs(hole[1]));
+  const rows = names.map(op => {
+    const tier = POS_TIER[op];
+    if(op === spot.opener){                                // 今の場面は表・おすすめと同じ値を使う
+      const g = defenseChart(spot).grid[info0.row][info0.col], dc = defenseChart(spot);
+      return { op, eq:g.eq, R:g.R, eqR:g.eqR, need:dc.need, act:g.act, cur:true };
+    }
+    const eq = equityRange(hole, [], [{ combos: rangeChart(tier), aggr: [] }], 4000, 0);
+    const ip = ipVs(spot.hero, op), R = realize(ip, 0, hole[0], hole[1], eq), eqR = eq * R;
+    const toCall = spot.openBB - spot.postedBB, req = toCall / (spot.potBB + toCall), need = req + 0.015 * spot.behind + 0.02 * spot.callers;
+    const info = handInfo(cs(hole[0]), cs(hole[1]));
+    return { op, eq, R, eqR, need, act: decideDef(eq, eqR, need, info.name, tier), cur: op === spot.opener };
+  });
+  cache.pt = { key, val: rows };
+  return rows;
+}
+function chartHTML(){
+  const me = G.players[0], info = handInfo(cs(me.hole[0]), cs(me.hole[1])), mine = [info.row, info.col];
+  const ps = G.street === 0 && G.phase === "play" && G.toAct === 0 ? (advise(), G.pfSpot) : G.pfSpot;
+  const browse = `<button class="btn sm" onclick="Practice.browser()">レンジ表を見る</button>`;
+  const ref = G.street > 0 || G.phase === "done" ? "（プリフロップの判断）" : "";
+  if(ps && ps.kind === "defend"){
+    const s = ps.spot, dc = defenseChart(s);
+    const cell = dc.grid[info.row][info.col];
+    const rows = posTable(s, ps.hole);
+    return `<div class="panel">
+      <div class="ptitle">ディフェンス表${ref}<span class="sp"></span>${browse}</div>
+      <p class="sub" style="margin-bottom:8px">あなた ${s.hero} vs ${esc(s.openerName)} ${s.opener} の ${s.openBB}BBオープン。${dc.ip ? "インポジション" : "アウトオブポジション"}・必要勝率 ${pctS(dc.need,0)}</p>
+      ${gridHTML((r, c) => ({ cls: DEF_CLS[dc.grid[r][c].act] }), mine)}
+      ${defLegend(dc)}
+      <div class="dme"><b>${info.name}</b>：推定勝率 ${pctS(cell.eq,0)} × 実現率 ${cell.R.toFixed(2)} = <b>${pctS(cell.eqR,0)}</b>　→　<b class="${DEF_CLS[cell.act]}t">${DEF_NAME[cell.act]}</b></div>
+      <div class="ptitle" style="margin-top:12px;font-size:13px">あなたの手札 vs 各ポジションのオープン</div>
+      <table class="pr-pt"><tr><th>オープン</th><th>推定勝率</th><th>実現率</th><th>実現後</th><th>必要</th><th>判断</th></tr>
+        ${rows.map(x => `<tr class="${x.cur ? "mine" : ""}"><td>${x.op}${x.cur ? "（今）" : ""}</td><td>${pctS(x.eq,0)}</td><td>×${x.R.toFixed(2)}</td><td>${pctS(x.eqR,0)}</td><td>${pctS(x.need,0)}</td><td class="${DEF_CLS[x.act]}t">${DEF_NAME[x.act]}</td></tr>`).join("")}
+      </table>
+      <p class="sub" style="margin-top:8px">前のポジションほどオープンレンジが強いので勝率が下がり、ディフェンスできる手札が減ります。BBはアウトオブポジション（SBのオープンに対してだけインポジション）なので実現率が低くなります</p>
+    </div>`;
+  }
+  if(ps && ps.kind === "vs3bet" || G.raiseCount >= 2 && G.street === 0){
+    return `<div class="panel"><div class="ptitle">プリフロップ表${ref}<span class="sp"></span>${browse}</div>
+      <p class="sub">3ベット以上を受けた場面は、オープン表・ディフェンス表の対象外です。相手のレンジ（上位約6%）に対する勝率と実現率で判断します</p></div>`;
+  }
+  const pos = ps && ps.pos ? ps.pos : posInfo(0).name, tier = POS_TIER[pos] ?? 4;
   return `<div class="panel">
-    <div class="ptitle">プリフロップ表<span class="sp"></span><span class="tier ${mine.code}">${mine.name}・${TIER_LABEL[mine.tier]}</span></div>
-    <p class="sub" style="margin-bottom:8px">あなたは ${pos.name}。明るいマスが ${pos.name} からオープンできる範囲、ピンクの枠があなたの手札</p>
-    <div class="hgrid mini">${cells}</div>
+    <div class="ptitle">オープンレンジ表${ref}<span class="sp"></span>${browse}</div>
+    <p class="sub" style="margin-bottom:8px">誰もレイズしていない時に、あなた（${pos}）から最初にレイズする範囲。明るいマスが ${pos} のオープン範囲、ピンクの枠があなたの手札（<span class="tier ${info.code}" style="padding:1px 6px">${info.name}・${TIER_LABEL[info.tier]}</span>）</p>
+    ${openGrid(tier, mine)}
   </div>`;
+}
+
+// ---------------------------------------------------------------------
+//  レンジ表ブラウザ（好きなポジションの組み合わせで見る）
+// ---------------------------------------------------------------------
+let rb = { hero:"BB", opener:"BTN", size:2.5, cell:null };
+function browserHTML(){
+  const heroI = PF_ORDER.indexOf(rb.hero);
+  const openers = rb.hero === "BB" ? PF_ORDER.filter(p => p !== "BB") : PF_ORDER.slice(0, heroI);
+  if(rb.opener !== "none" && !openers.includes(rb.opener)) rb.opener = "none";
+  const seg = (vals, cur, fn) => `<div class="pr-seg wrap">${vals.map(([v, l]) => `<button class="${cur === v ? "on" : ""}" onclick="Practice.rb('${fn}','${v}')">${l}</button>`).join("")}</div>`;
+  let body;
+  const anteBB = cfg.ante === "none" ? 0 : cfg.ante === "bb" ? 1 : 9 / 8;
+  if(rb.opener === "none"){
+    const tier = POS_TIER[rb.hero];
+    let w = 0, t = 0; for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){ t += clsWeight(r, c); if(TIERS[CHART[r][c]] <= tier) w += clsWeight(r, c); }
+    body = `<p class="sub" style="margin:8px 0">${rb.hero} のオープンレンジ（全体の約${pctS(w / t, 0)}）。写真のチャートどおり</p>${openGrid(tier, null)}`;
+  }else{
+    const posted = rb.hero === "BB" ? 1 : rb.hero === "SB" ? 0.5 : 0;
+    const opPosted = rb.opener === "SB" ? 0.5 : 0;
+    const potBB = +(1.5 + anteBB + rb.size - opPosted).toFixed(2);
+    const pfI = PF_ORDER.indexOf(rb.hero);
+    const behind = rb.hero === "BB" ? 0 : rb.hero === "SB" ? 1 : PF_ORDER.length - 1 - pfI;
+    const dc = defenseChart({ hero: rb.hero, opener: rb.opener, openBB: rb.size, postedBB: posted, potBB, behind, callers: 0 });
+    const sel = rb.cell ? dc.grid[rb.cell[0]][rb.cell[1]] : null;
+    body = `<p class="sub" style="margin:8px 0">${rb.hero} vs ${rb.opener} の${rb.size}BBオープン（${dc.ip ? "インポジション" : "アウトオブポジション"}）。アンティ${cfg.ante === "none" ? "なし" : cfg.ante === "bb" ? "BB" : "全員"}・必要勝率 ${pctS(dc.need,0)}</p>
+      ${gridHTML((r, c) => ({ cls: DEF_CLS[dc.grid[r][c].act] }), rb.cell, "Practice.rbCell")}
+      ${defLegend(dc)}
+      ${sel ? `<div class="dme"><b>${sel.name}</b>：推定勝率 ${pctS(sel.eq,0)} × 実現率 ${sel.R.toFixed(2)} = <b>${pctS(sel.eqR,0)}</b>（必要 ${pctS(dc.need,0)}）→ <b class="${DEF_CLS[sel.act]}t">${DEF_NAME[sel.act]}</b></div>` : `<p class="sub" style="margin-top:6px">マスをタップすると、その手札の勝率と実現率が出ます</p>`}`;
+  }
+  return `<h2>レンジ表<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
+    <div class="pr-lbl" style="margin-top:0">あなたのポジション</div>${seg(PF_ORDER.map(p => [p, p]), rb.hero, "hero")}
+    <div class="pr-lbl">先にオープンした人</div>${seg([["none","なし（自分がオープン）"]].concat(openers.map(p => [p, p])), rb.opener, "opener")}
+    ${rb.opener !== "none" ? `<div class="pr-lbl">オープンの額</div>${seg([["2.2","2.2BB"],["2.5","2.5BB"],["3","3BB"]], String(rb.size), "size")}` : ""}
+    ${body}
+    <p class="sub" style="margin-top:10px">ディフェンス表は、相手のオープンレンジに対する勝率・実現率・必要勝率（ブラインドとアンティのデッドマネー込み）から計算した目安です（ソルバーの解ではありません）</p>`;
 }
 function resultHTML(){
   const me = G.players[0];
@@ -1085,8 +1338,13 @@ window.Practice = {
   reveal(v){ ui.reveal = v; render(); },
   toggleLog(){ ui.showLog = !ui.showLog; render(); },
   toggleReview(){ ui.review = !ui.review; render(); },
+  browser(){ rb.cell = null; if(G && G.players && G.players[0].hole.length){ const p = posInfo(0).name; if(PF_ORDER.includes(p)) rb.hero = p; const o = G.opener >= 0 ? posInfo(G.opener).name : null; if(o) rb.opener = o; }
+    openModal(browserHTML()); },
+  rb(k, v){ rb[k] = k === "size" ? Number(v) : v; rb.cell = null; openModal(browserHTML()); },
+  rbCell(r, c){ rb.cell = [r, c]; openModal(browserHTML()); },
   // テスト用
-  _sim(n){ return simulate(n); }
+  _sim(n){ return simulate(n); },
+  _def(o){ const d = defenseChart(o); return d.freq; }
 };
 
 // 自動対戦テスト（あなたもCPUとして動かし、チップが増減しないか確認）
