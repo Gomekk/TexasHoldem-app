@@ -28,8 +28,8 @@ const fmt = n => Math.round(n).toLocaleString("ja-JP");
 const pctS = (v, d = 1) => (v * 100).toFixed(d) + "%";
 const rnd = Math.random;
 
-let cfg = load(LS_CFG, { format:"ring", opp:5, ante:"none", speed:"normal", advice:true, prob:true, chart:true });
-let stats = load(LS_STATS, { hands:0, decisions:0, agree:0, ringProfit:0, tours:[], scoreSum:0, scoreN:0 });
+let cfg = load(LS_CFG, { format:"ring", opp:5, ante:"none", speed:"normal", advice:true, prob:true, chart:true, quiz:false });
+let stats = load(LS_STATS, { hands:0, decisions:0, agree:0, ringProfit:0, tours:[], scoreSum:0, scoreN:0, qN:0, qHit:0, qNeedN:0, qNeedHit:0 });
 function load(k, d){ try{ return Object.assign({}, d, JSON.parse(localStorage.getItem(k)) || {}); }catch(e){ return d; } }
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 
@@ -1045,6 +1045,36 @@ function css(){
   .th-tips div{font-size:12px;line-height:1.6;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:7px 10px}
   .rv-th{margin-top:8px}
   .rv-th summary{font-size:12px;font-weight:800;color:#b99bff;cursor:pointer;margin-bottom:8px}
+  .cm-t{width:100%;border-collapse:collapse;font-size:12.5px}
+  .cm-t th{font-size:10.5px;color:var(--sub);font-weight:700;text-align:right;padding:4px;line-height:1.3}
+  .cm-t th:first-child{text-align:left}
+  .cm-t td{padding:7px 4px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;vertical-align:top}
+  .cm-t td:first-child{text-align:left}
+  .cm-t td small{display:block;font-size:10.5px;color:var(--sub);font-weight:500}
+  .cm-t td.hl{color:#7ff0ff;font-weight:900;font-size:14px}
+  .cm-note{margin-top:10px;display:grid;gap:6px;font-size:12px;line-height:1.6;color:var(--sub)}
+  .cm-note b{color:var(--text)}
+  .cm-m{padding:9px 0;border-top:1px solid var(--line)}
+  .cm-m:first-child{border-top:none;padding-top:0}
+  .cm-h{font-weight:800;font-size:13px;margin-bottom:6px}
+  .cm-c{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .cm-c .vs{color:var(--sub);font-size:11px;font-weight:800}
+  .cm-c .bd{color:var(--sub);font-size:10px;margin-left:6px}
+  .cm-bar{height:10px;border-radius:5px;background:#ff7a5c;overflow:hidden}
+  .cm-bar i{display:block;height:100%;background:linear-gradient(90deg,#1f8f63,#22e4ff)}
+  .cm-lb{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:3px}
+  .cm-lb b{color:var(--text);font-size:14px}
+  .cm-s{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
+  .quiz{border-color:#4a3480}
+  .qz-q{font-weight:800;font-size:14px;margin:8px 0 6px}
+  .qz-q small{display:block;font-size:11px;color:var(--sub);font-weight:600}
+  .qz-o{display:flex;gap:5px;flex-wrap:wrap}
+  .qz-o button{flex:1;min-width:58px;padding:11px 4px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-weight:800;font-size:13px}
+  .qz-o button.on{background:#a64dff;border-color:#a64dff;color:#fff}
+  .qz-r{display:grid;grid-template-columns:70px 56px 1fr;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;margin-bottom:6px;font-size:13px}
+  .qz-r.ok{background:#0f3a28}.qz-r.ng{background:#3a1820}
+  .qz-r b{font-weight:900}.qz-r.ok b{color:#3ddc97}.qz-r.ng b{color:#ff8a99}
+  .qz-r em{font-style:normal;color:var(--sub);font-size:12px}
   .wm{margin-top:10px;font-size:12px;line-height:1.7;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px}
   .wm b{color:#fff}
   .fm-rec{font-size:12px;font-weight:900;border-radius:999px;padding:3px 11px;margin-top:2px;white-space:nowrap}
@@ -1126,9 +1156,12 @@ function setupHTML(){
       <label class="pr-sw"><span>おすすめアクション・勝率を表示</span><input type="checkbox" ${cfg.advice ? "checked" : ""} onchange="Practice.set('advice',this.checked)"></label>
       <label class="pr-sw"><span>役の確率表を表示</span><input type="checkbox" ${cfg.prob ? "checked" : ""} onchange="Practice.set('prob',this.checked)"></label>
       <label class="pr-sw"><span>プリフロップ表を表示</span><input type="checkbox" ${cfg.chart ? "checked" : ""} onchange="Practice.set('chart',this.checked)"></label>
+      <label class="pr-sw"><span>予想モード（勝率・必要勝率を予想してから答え合わせ）</span><input type="checkbox" ${cfg.quiz ? "checked" : ""} onchange="Practice.set('quiz',this.checked)"></label>
     </div>
     <button class="btn primary big" style="margin-bottom:10px" onclick="Practice.start()">スタート</button>
-    <button class="btn big" style="margin-bottom:12px" onclick="Practice.browser()">レンジ表を見る（オープン・ディフェンス）</button>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn big" onclick="Practice.browser()">レンジ表</button>
+      <button class="btn big" onclick="Practice.cheat('bet')">早見表</button></div>
     <div class="panel">
       <div class="ptitle">これまでの練習</div>
       <div class="kv">
@@ -1138,6 +1171,8 @@ function setupHTML(){
         <div><span>トーナメント最高</span><b>${best}</b></div>
         <div><span>判断スコア平均</span><b>${stats.scoreN ? Math.round(stats.scoreSum / stats.scoreN) : "—"}</b></div>
         <div><span>振り返ったハンド</span><b>${fmt(stats.scoreN || 0)}</b></div>
+        <div><span>予想の正解率（勝率）</span><b>${stats.qN ? pctS(stats.qHit / stats.qN, 0) : "—"}</b></div>
+        <div><span>予想の正解率（必要勝率）</span><b>${stats.qNeedN ? pctS(stats.qNeedHit / stats.qNeedN, 0) : "—"}</b></div>
       </div>
       <p class="sub" style="margin-top:10px">アドバイスは、GTOソルバーではなく「勝率・必要勝率・相手のアクションから推定したレンジ」をもとにした目安です</p>
     </div>`;
@@ -1152,17 +1187,22 @@ function tableHTML(){
     : `リング・収支 ${signed(me.stack + (G.phase !== "done" ? me.total : 0) - G.buyin)}`;
   const sub = `${fmt(G.sb)}/${fmt(G.bb)}${G.ante ? `・アンティ${fmt(G.ante)}` : ""}・ハンド#${G.handNo}${G.tour ? `・次のレベルまで${HANDS_PER_LEVEL - ((G.handNo - 1) % HANDS_PER_LEVEL)}` : ""}`;
   let h = `<div class="pr-hd"><div class="t"><b>${head}</b><span>${sub}</span></div>
+      <button class="btn sm" onclick="Practice.cheat('bet')">早見表</button>
       <button class="btn sm" onclick="Practice.quit()">終了</button></div>`;
   if(G.over) return h + overHTML() + reviewHTML();
   // 相手
   h += ringHTML();
-  h += thinkPanelHTML();
-  h += whyPanelHTML();
-  h += rangePanelHTML();
+  const qp = quizPending();
+  h += quizHTML();
+  if(!qp){
+    h += thinkPanelHTML();
+    h += whyPanelHTML();
+    h += rangePanelHTML();
+  }
   if(G.phase === "done") h += resultHTML() + reviewHTML();
-  if(cfg.advice && myTurn) h += adviceHTML();
+  if(cfg.advice && myTurn && !qp) h += adviceHTML();
   if(cfg.prob && me.hole.length && !me.folded) h += probHTML();
-  if(cfg.chart && me.hole.length) h += chartHTML();
+  if(cfg.chart && me.hole.length && !qp) h += chartHTML();
   h += `<div class="panel"><div class="ptitle">ログ<span class="sp"></span>
       <button class="btn sm" onclick="Practice.toggleLog()">${ui.showLog ? "閉じる" : "開く"}</button></div>
     ${ui.showLog ? `<div class="pr-log">${G.log.map(esc).join("<br>")}</div>` : `<div class="pr-log">${esc(G.log[G.log.length - 1] || "")}</div>`}</div>`;
@@ -1210,6 +1250,7 @@ function liveEquity(){
 }
 function feltMeterHTML(){
   const me = G.players[0];
+  if(quizPending()) return `<div class="fm"><div class="fm-lbl">予想モード</div><b class="fm-big" style="font-size:20px">？</b><div class="fm-calc">下で予想すると勝率が出ます</div></div>`;
   if(!cfg.advice || !me.hole.length || me.folded || G.phase === "done" || live().length < 2) return "";
   const myTurn = G.phase === "play" && G.toAct === 0;
   const a = myTurn ? advise() : liveEquity();
@@ -1228,6 +1269,160 @@ function feltMeterHTML(){
     ${myTurn ? `<div class="fm-rec ${recCls}">${esc(a.rec.label)}</div>` : ""}
   </div>`;
 }
+// ---------------------------------------------------------------------
+//  早見表（ベット額・よくある対決・ドロー・覚えておきたい確率）
+// ---------------------------------------------------------------------
+const H2 = s => s.split(" ").map(toInt);
+const PRE_MATCH = [
+  ["ペア vs 下のペア", "Ks Kh", "9c 9d"],
+  ["ペア vs 上のカード2枚（コイントス）", "8s 8h", "Ac Kd"],
+  ["ペア vs 上1枚・下1枚", "9s 9h", "Ac 5d"],
+  ["ペア vs 下のカード2枚", "Qs Qh", "8c 7c"],
+  ["小さいペア vs AKs", "2s 2h", "Ac Kc"],
+  ["キッカー勝ち（相手を支配）", "As Kh", "Ac Qd"],
+  ["上のカード2枚 vs 下のカード2枚", "As Kh", "8c 7d"],
+  ["上1枚・下1枚 vs 間の2枚", "As 7h", "Kc Qd"],
+  ["AKo vs QQ", "As Kh", "Qc Qd"],
+  ["AA vs スーテッドコネクター", "As Ac", "8h 7h"],
+];
+const POST_MATCH = [
+  ["フラッシュドロー vs トップペア", "Ks 7s 2d", "6s 5s", "Kh Qd"],
+  ["ナッツフラッシュドロー＋Aのオーバーカード vs トップペア", "Ks 7s 2d", "As 5s", "Kh Qd"],
+  ["両面ストレートドロー vs トップペア", "9h 8c 2d", "7s 6d", "Ad 9s"],
+  ["ガットショット vs トップペア", "9h 7c 2d", "6s 5d", "Ad 9s"],
+  ["フラッシュ＋両面ドロー vs トップペア", "9s 8s 2d", "7s 6s", "Ad 9h"],
+  ["両面ドロー＋オーバーカード2枚 vs トップペア", "9h 8c 2d", "Js Td", "Ad 9s"],
+  ["オーバーカード2枚 vs ペア", "9h 7c 2d", "As Kd", "9d 8c"],
+  ["セット vs オーバーペア", "8h 5c 2d", "8s 8d", "Ah Ac"],
+  ["オーバーペア vs トップペア", "Th 6c 3d", "Qs Qh", "As Td"],
+  ["トップペア キッカー勝ち vs 負け", "Kh 7c 2d", "Ks Ah", "Kd Qc"],
+];
+let matchCache = null;
+function hu(a, b, board, iters){
+  const known = new Set(a.concat(b, board));
+  const deck = ALL.filter(c => !known.has(c));
+  let w = 0, n = 0;
+  const sc = bd => { const x = evaluate(a.concat(bd)), y = evaluate(b.concat(bd)); return x > y ? 1 : x === y ? 0.5 : 0; };
+  if(board.length === 3){ for(let i = 0; i < deck.length; i++) for(let j = i + 1; j < deck.length; j++){ w += sc(board.concat(deck[i], deck[j])); n++; } return w / n; }
+  for(let k = 0; k < iters; k++){
+    const d = deck.slice(); let len = d.length; const bd = board.slice();
+    while(bd.length < 5){ const j = Math.floor(rnd() * len); bd.push(d[j]); d[j] = d[--len]; }
+    w += sc(bd); n++;
+  }
+  return w / n;
+}
+function matchups(){
+  if(matchCache) return matchCache;
+  const pre = PRE_MATCH.map(([t, a, b]) => ({ t, a: H2(a), b: H2(b), eq: hu(H2(a), H2(b), [], 6000) }));
+  const post = POST_MATCH.map(([t, bd, a, b]) => ({ t, board: H2(bd), a: H2(a), b: H2(b), eq: hu(H2(a), H2(b), H2(bd)) }));
+  // AA vs ランダム
+  const aa = H2("As Ah"); let w = 0; const deck = ALL.filter(c => !aa.includes(c));
+  for(let k = 0; k < 6000; k++){ const d = deck.slice(); let len = d.length; const pick = () => { const j = Math.floor(rnd() * len); const c = d[j]; d[j] = d[--len]; return c; };
+    const o = [pick(), pick()], bd = [pick(), pick(), pick(), pick(), pick()]; const x = evaluate(aa.concat(bd)), y = evaluate(o.concat(bd)); w += x > y ? 1 : x === y ? 0.5 : 0; }
+  matchCache = { pre, post, aaRandom: w / 6000 };
+  return matchCache;
+}
+const BET_SIZES = [["1/4", 0.25], ["1/3", 1/3], ["1/2", 0.5], ["2/3", 2/3], ["3/4", 0.75], ["ポット", 1], ["1.5倍", 1.5], ["2倍", 2]];
+const OUTS = [[2, "ポケットペア → セット"], [4, "ガットショット"], [6, "オーバーカード2枚"], [8, "両面ストレートドロー"], [9, "フラッシュドロー"], [12, "フラッシュ＋ガットショット"], [15, "フラッシュ＋両面"]];
+const FACTS = [
+  ["ポケットペアが配られる", "5.9%", "17回に1回"],
+  ["AAが配られる", "0.45%", "221回に1回（9人卓で誰かがAA：約3.6%）"],
+  ["ポケットペアがフロップでセット以上", "11.8%", "約8回に1回"],
+  ["ペアでない手札がフロップで自分のカードとペア以上", "32%", "約3回に1回"],
+  ["スーテッドがフロップでフラッシュ", "0.8%", "約118回に1回"],
+  ["スーテッドがフロップでフラッシュドロー", "10.9%", "約9回に1回"],
+  ["スーテッドがリバーまでにフラッシュ", "6.4%", "約16回に1回"],
+  ["フロップで外れた時、2枚のオーバーカードがリバーまでにペア", "約24%", "アウツ6枚"],
+];
+function eqBar(eq, la, lb){
+  return `<div class="cm-bar"><i style="width:${(eq * 100).toFixed(1)}%"></i></div>
+    <div class="cm-lb"><span><b>${pctS(eq, 0)}</b> ${la}</span><span>${lb} <b>${pctS(1 - eq, 0)}</b></span></div>`;
+}
+function cheatHTML(tab){
+  const tabs = [["bet","ベット額"],["pre","対決（配られた時）"],["post","ドロー・フロップ"],["prob","確率"]];
+  let body = "";
+  if(tab === "bet"){
+    body = `<table class="cm-t"><tr><th>相手のベット</th><th>必要勝率</th><th>MDF</th><th>ブラフ成功に必要</th></tr>
+      ${BET_SIZES.map(([l, b]) => `<tr><td><b>${l}</b>ポット</td><td class="hl">${pctS(b / (1 + 2 * b), 0)}</td><td>${pctS(1 / (1 + b), 0)}</td><td>${pctS(b / (1 + b), 0)}</td></tr>`).join("")}</table>
+      <div class="cm-note">
+        <p><b>必要勝率</b>：このベットにコールするのに必要な勝率。ベット ÷（ポット＋ベット×2）</p>
+        <p><b>MDF</b>：自分のレンジのうち、最低この割合で降りずに続けないと、相手のブラフが何でも儲かる。ポット ÷（ポット＋ベット）</p>
+        <p><b>ブラフ成功に必要</b>：自分がこのサイズでブラフする時、相手がこの割合以上降りれば得。ベット ÷（ポット＋ベット）</p>
+        <p>リバーで「バリューとブラフをバランスよく混ぜる」なら、ベットの中のブラフの割合は必要勝率と同じ（ポットベットなら3回に1回がブラフ）</p>
+      </div>`;
+  }else if(tab === "pre" || tab === "post"){
+    const M = matchups();
+    if(tab === "pre"){
+      body = M.pre.map(m => `<div class="cm-m"><div class="cm-h">${m.t}</div>
+        <div class="cm-c"><div class="cards">${m.a.map(c => card(cs(c), "sm")).join("")}</div><span class="vs">vs</span><div class="cards">${m.b.map(c => card(cs(c), "sm")).join("")}</div></div>
+        ${eqBar(m.eq, "", "")}</div>`).join("") +
+        `<div class="cm-m"><div class="cm-h">AA vs ランダムな手札</div>${eqBar(M.aaRandom, "AA", "ランダム")}</div>
+        <p class="cm-s">プリフロップのオールインの勝率（このアプリの計算）。大事なのは数字の「型」：ペア対オーバーカード2枚 ≒ 55:45、上のペア対下のペア ≒ 80:20、キッカー負け ≒ 25〜30%、上2枚対下2枚 ≒ 60〜65%、AKo対QQ ≒ 43:57</p>`;
+    }else{
+      body = M.post.map(m => `<div class="cm-m"><div class="cm-h">${m.t}</div>
+        <div class="cm-c"><div class="cards">${m.a.map(c => card(cs(c), "sm")).join("")}</div><span class="vs">vs</span><div class="cards">${m.b.map(c => card(cs(c), "sm")).join("")}</div>
+          <span class="bd">ボード</span><div class="cards">${m.board.map(c => card(cs(c), "sm")).join("")}</div></div>
+        ${eqBar(m.eq, "", "")}</div>`).join("") +
+        `<div class="ptitle" style="margin-top:12px;font-size:14px">アウツと完成する確率</div>
+        <table class="cm-t"><tr><th>アウツ</th><th>ターン or リバーの1枚で</th><th>フロップからリバーまで</th></tr>
+        ${OUTS.map(([o, n]) => { const one = o / 47, two = 1 - ((47 - o) / 47) * ((46 - o) / 46); return `<tr><td><b>${o}枚</b><small>${n}</small></td><td>${pctS(one, 0)}<small>（×2なら${o * 2}%）</small></td><td class="hl">${pctS(two, 0)}<small>（×4なら${o * 4}%）</small></td></tr>`; }).join("")}
+        </table><p class="cm-s">2倍・4倍ルール：アウツ×2＝次の1枚で完成する確率、アウツ×4＝フロップからリバーまでに完成する確率（アウツが多いと4倍は少し大きめに出る）</p>`;
+    }
+  }else{
+    body = `<table class="cm-t">${FACTS.map(([a, b, c]) => `<tr><td>${a}<small>${c}</small></td><td class="hl">${b}</td></tr>`).join("")}</table>
+      <p class="cm-s">「セットを狙ってコール」は約8回に1回しか当たらないので、相手のスタックが十分深い時（目安：コール額の15倍以上）だけ</p>`;
+  }
+  return `<h2>早見表<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
+    <div class="pr-seg wrap" style="margin-bottom:12px">${tabs.map(([k, l]) => `<button class="${tab === k ? "on" : ""}" onclick="Practice.cheat('${k}')">${l}</button>`).join("")}</div>
+    ${body}`;
+}
+
+// ---------------------------------------------------------------------
+//  予想モード（勝率と必要勝率を自分で予想してから答え合わせ）
+// ---------------------------------------------------------------------
+const EQ_BUCKETS = [[0, 0.2, "〜20%"], [0.2, 0.35, "20〜35%"], [0.35, 0.5, "35〜50%"], [0.5, 0.65, "50〜65%"], [0.65, 1.01, "65%〜"]];
+const NEED_OPTS = [0.2, 0.25, 0.29, 0.33, 0.4];
+const qKey = () => `${G.handNo}|${G.street}|${G.actions}`;
+function quizPending(){
+  return cfg.quiz && cfg.advice && G && G.phase === "play" && G.toAct === 0 && !(ui.quiz && ui.quiz.key === qKey() && ui.quiz.done);
+}
+function quizNeedsCall(a){ return a.toCall > 0 && a.kind !== "open" && a.kind !== "push"; }
+function quizHTML(){
+  if(!cfg.quiz || !cfg.advice || !G || G.phase !== "play" || G.toAct !== 0) return "";
+  const a = advise(), key = qKey();
+  if(!ui.quiz || ui.quiz.key !== key) ui.quiz = { key, eq: null, need: null, done: false };
+  const q = ui.quiz, needQ = quizNeedsCall(a);
+  if(q.done){
+    const b = EQ_BUCKETS[q.eq], hit = a.eq >= b[0] && a.eq < b[1];
+    const nHit = needQ ? Math.abs(NEED_OPTS[q.need] - a.req) <= 0.03 : null;
+    return `<div class="panel quiz done"><div class="ptitle">答え合わせ</div>
+      <div class="qz-r ${hit ? "ok" : "ng"}"><span>勝率</span><b>${hit ? "正解" : "はずれ"}</b><em>予想 ${b[2]} → 実際 ${pctS(a.eq, 0)}</em></div>
+      ${needQ ? `<div class="qz-r ${nHit ? "ok" : "ng"}"><span>必要勝率</span><b>${nHit ? "正解" : "はずれ"}</b><em>予想 ${pctS(NEED_OPTS[q.need], 0)} → 実際 ${pctS(a.req, 0)}</em></div>
+        <p class="sub" style="margin-top:6px">実現率を掛けた勝率 ${pctS(a.eqR, 0)} と、余裕込みの必要勝率 ${pctS(a.need, 0)} を比べると → <b style="color:var(--text)">${a.eqR >= a.need ? "コールに足りる" : "コールには足りない"}</b></p>` : ""}
+      <p class="sub" style="margin-top:6px">これまでの正解率：勝率 ${stats.qN ? pctS(stats.qHit / stats.qN, 0) : "—"}（${stats.qN}問）${stats.qNeedN ? `・必要勝率 ${pctS(stats.qNeedHit / stats.qNeedN, 0)}（${stats.qNeedN}問）` : ""}</p></div>`;
+  }
+  return `<div class="panel quiz"><div class="ptitle">予想してから答え合わせ<span class="sp"></span><small>数字は答えると表示</small></div>
+    <p class="qz-q">1. あなたの勝率は？<small>相手のアクションから推定したレンジに対して</small></p>
+    <div class="qz-o">${EQ_BUCKETS.map((b, i) => `<button class="${q.eq === i ? "on" : ""}" onclick="Practice.qAns('eq',${i})">${b[2]}</button>`).join("")}</div>
+    ${needQ ? `<p class="qz-q">2. 必要勝率は？<small>コール ${fmt(a.toCall)}・ポット ${fmt(a.pot)}</small></p>
+    <div class="qz-o">${NEED_OPTS.map((v, i) => `<button class="${q.need === i ? "on" : ""}" onclick="Practice.qAns('need',${i})">${pctS(v, 0)}</button>`).join("")}</div>` : ""}
+    <p class="sub" style="margin-top:8px">ヒント：早見表の「ベット額」と「対決」の数字を思い出してみましょう　<button class="btn sm" onclick="Practice.cheat('bet')">早見表</button></p>
+  </div>`;
+}
+function qAns(kind, i){
+  const a = advise(), q = ui.quiz; if(!q) return;
+  q[kind] = i;
+  const needQ = quizNeedsCall(a);
+  if(q.eq != null && (!needQ || q.need != null)){
+    q.done = true;
+    const b = EQ_BUCKETS[q.eq];
+    stats.qN++; if(a.eq >= b[0] && a.eq < b[1]) stats.qHit++;
+    if(needQ){ stats.qNeedN++; if(Math.abs(NEED_OPTS[q.need] - a.req) <= 0.03) stats.qNeedHit++; }
+    save(LS_STATS, stats);
+  }
+  render();
+}
+
 // ---------------------------------------------------------------------
 //  プロの思考プロセス（状況整理 → レンジ → ボード → 手札の位置 → 数字 → 期待値比較 → 結論）
 // ---------------------------------------------------------------------
@@ -1906,6 +2101,8 @@ window.Practice = {
   reveal(v){ ui.reveal = v; render(); },
   toggleLog(){ ui.showLog = !ui.showLog; render(); },
   toggleReview(){ ui.review = !ui.review; render(); },
+  cheat(tab){ openModal(cheatHTML(tab || "bet")); },
+  qAns,
   toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
   browser(){ rb.cell = null; if(G && G.players && G.players[0].hole.length){ const p = posInfo(0).name; if(PF_ORDER.includes(p)) rb.hero = p; const o = G.opener >= 0 ? posInfo(G.opener).name : null; if(o) rb.opener = o; }
     openModal(browserHTML()); },
