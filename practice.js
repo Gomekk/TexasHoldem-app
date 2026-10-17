@@ -900,6 +900,15 @@ function css(){
   .pr-bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(11,16,21,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
     padding:10px 12px calc(env(safe-area-inset-bottom) + 10px)}
   .pr-bar .in{max-width:560px;margin:0 auto}
+  .pr-bar.turn{border-top-color:#22e4ff;box-shadow:0 -6px 18px rgba(34,228,255,.18)}
+  .ms{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .ms .cards{gap:6px}
+  .ms.fold .cards{opacity:.45}
+  .ms-i{flex:1;min-width:0}
+  .ms-h{font-size:15px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ms-s{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:var(--sub);white-space:nowrap;overflow:hidden}
+  .ms-s b{color:var(--text);font-size:14px;font-variant-numeric:tabular-nums}
+  .ms.win .ms-h{color:var(--warn)}
   .pr-bar .row{gap:8px}
   .pr-bar .btn{padding:14px 6px;font-size:16px}
   .pr-wait{text-align:center;color:var(--sub);font-size:14px;padding:6px 0}
@@ -984,6 +993,26 @@ function css(){
   .wab-bar i.up{background:#2fbf7a}.wab-bar i.dn{background:#ff7a5c}
   .wab-f{font-size:12px;color:var(--sub);margin-top:2px}
   .wab-f b{color:var(--text);font-size:14px}
+  .rvr-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .rvr-h{font-size:13px;font-weight:900;margin-bottom:4px;display:flex;flex-direction:column}
+  .rvr-h span{font-size:10px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rgx{display:grid;grid-template-columns:repeat(13,1fr);gap:1px;background:#0e141a;padding:1px;border-radius:5px;margin-bottom:6px}
+  .rgx i{display:block;aspect-ratio:1;background:#1a222b;border-radius:1px}
+  .rgx i.me{outline:2px solid #ff3d7f;outline-offset:-1px;position:relative;z-index:1}
+  .rc-pp{background:#ff6b9a!important}.rc-ax{background:#22e4ff!important}.rc-bw{background:#2fbf7a!important}.rc-sc{background:#ffb020!important}.rc-ot{background:#7d8a98!important}
+  .rc-st{background:#a64dff!important}.rc-tp{background:#22c37a!important}.rc-wp{background:#9fd36b!important}.rc-dr{background:#ffb020!important}.rc-ai{background:#56616d!important}
+  .wb i[class^="rc-"]{display:block;height:100%}
+  .rvr-t{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  .rvr-t th{font-size:11px;color:var(--sub);text-align:right;padding:3px 4px}
+  .rvr-t td{padding:4px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+  .rvr-t td:first-child{text-align:left;font-weight:700;display:flex;align-items:center;gap:6px}
+  .rvr-t td i{display:inline-block;width:10px;height:10px;border-radius:2px}
+  .rvr-eq{margin-top:12px}
+  .rvr-eqbar{height:12px;border-radius:6px;background:#ff7a5c;overflow:hidden}
+  .rvr-eqbar i{display:block;height:100%;background:linear-gradient(90deg,#1f8f63,#22e4ff)}
+  .rvr-eqt{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;margin-top:4px;color:var(--sub)}
+  .rvr-eqt b{color:var(--text);font-size:15px}
+  .rvr-eqt .c{font-weight:800;color:var(--text)}
   .wm{margin-top:10px;font-size:12px;line-height:1.7;background:#1d1533;border:1px solid #4a3480;color:#d9c8ff;border-radius:10px;padding:8px 10px}
   .wm b{color:#fff}
   .fm-rec{font-size:12px;font-weight:900;border-radius:999px;padding:3px 11px;margin-top:2px;white-space:nowrap}
@@ -1096,17 +1125,7 @@ function tableHTML(){
   // 相手
   h += ringHTML();
   h += whyPanelHTML();
-  // 自分
-  const pos = posInfo(0);
-  const myCat = me.hole.length ? CAT_NAME[catOf(evaluate(me.hole.concat(G.board)))] : "";
-  const won = G.phase === "done" && me.won > 0;
-  h += `<div class="pr-me ${myTurn ? "turn" : ""} ${won ? "win" : ""}">
-    <div class="row1"><div class="cards lg">${me.hole.map(c => card(cs(c), "lg")).join("")}</div>
-      <div class="info"><span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span>
-        <div style="margin-top:4px"><b>${fmt(me.stack)}</b></div>
-        <div>${(me.stack / G.bb).toFixed(1)}BB${me.bet ? `・ベット中 ${fmt(me.bet)}` : ""}</div>
-        <div>${me.folded ? "フォールド" : G.board.length ? myCat : tierBadgeText(me)}</div></div></div>
-  </div>`;
+  h += rangePanelHTML();
   if(G.phase === "done") h += resultHTML() + reviewHTML();
   if(cfg.advice && myTurn) h += adviceHTML();
   if(cfg.prob && me.hole.length && !me.folded) h += probHTML();
@@ -1114,7 +1133,7 @@ function tableHTML(){
   h += `<div class="panel"><div class="ptitle">ログ<span class="sp"></span>
       <button class="btn sm" onclick="Practice.toggleLog()">${ui.showLog ? "閉じる" : "開く"}</button></div>
     ${ui.showLog ? `<div class="pr-log">${G.log.map(esc).join("<br>")}</div>` : `<div class="pr-log">${esc(G.log[G.log.length - 1] || "")}</div>`}</div>`;
-  h += `<div style="height:${myTurn ? (ui.sizing ? 230 : 90) : 80}px"></div>`;
+  h += `<div style="height:${myTurn ? (ui.sizing ? 300 : 160) : 150}px"></div>`;
   h += barHTML(myTurn);
   return h;
 }
@@ -1242,6 +1261,146 @@ function whyBreakdown(){
   whyCache = { key, val };
   return val;
 }
+// ---------------------------------------------------------------------
+//  レンジ比較（あなた vs 相手）
+// ---------------------------------------------------------------------
+const PRE_CATS = [ { k:"pp", name:"ペア" }, { k:"ax", name:"A絡み" }, { k:"bw", name:"ブロードウェイ" }, { k:"sc", name:"スーテッド" }, { k:"ot", name:"その他" } ];
+const POST_CATS = [ { k:"st", name:"強い役（2ペア以上）" }, { k:"tp", name:"トップペア以上" }, { k:"wp", name:"弱いペア" }, { k:"dr", name:"ドロー" }, { k:"ai", name:"何もない" } ];
+function preCat(a, b){
+  const r1 = a >> 2, r2 = b >> 2;
+  if(r1 === r2) return "pp";
+  if(r1 === 14 || r2 === 14) return "ax";
+  if(r1 >= 10 && r2 >= 10) return "bw";
+  if((a & 3) === (b & 3)) return "sc";
+  return "ot";
+}
+function hasDraw(h, board){
+  const all = h.concat(board);
+  const cnt = [0,0,0,0]; all.forEach(c => cnt[c & 3]++);
+  if(h.some(c => cnt[c & 3] === 4)) return true;
+  const ranks = new Set(all.map(c => c >> 2)); if(ranks.has(14)) ranks.add(1);
+  const hr = h.map(c => c >> 2).concat(h.some(c => c >> 2 === 14) ? [1] : []);
+  for(let lo = 1; lo <= 10; lo++){
+    let n = 0, mine = false;
+    for(let r = lo; r < lo + 5; r++) if(ranks.has(r)){ n++; if(hr.includes(r)) mine = true; }
+    if(n === 4 && mine) return true;
+  }
+  return false;
+}
+function postCat(h, board){
+  const v = evaluate(h.concat(board)), cat = catOf(v), bcat = catOf(evaluate(board));
+  if(cat >= 2 && cat > bcat) return "st";
+  const top = Math.max(...board.map(c => c >> 2));
+  const r1 = h[0] >> 2, r2 = h[1] >> 2;
+  const br = board.map(c => c >> 2);
+  if(r1 === r2 && r1 > top) return "tp";
+  if(r1 === top || r2 === top) return "tp";
+  if(r1 === r2 || br.includes(r1) || br.includes(r2)) return "wp";
+  if(board.length < 5 && hasDraw(h, board)) return "dr";
+  return "ai";
+}
+// あなたのレンジ（ここまでのアクションから推定）
+function myRange(){
+  const me = G.players[0], pos = posInfo(0).name;
+  const tier = POS_TIER[pos] ?? 4;
+  let combos, label;
+  const spot = G.pfSpot && G.pfSpot.kind === "defend" ? G.pfSpot.spot : null;
+  const fromDef = acts => { const dc = defenseChart(spot); return COMBOS.filter(([a, b]) => { const [r, c] = rcOf(a, b); return acts.includes(dc.grid[r][c].act); }); };
+  const fromDefSpot = acts => { const dc = defenseChart(currentDefSpot()); return COMBOS.filter(([a, b]) => { const [r, c] = rcOf(a, b); return acts.includes(dc.grid[r][c].act); }); };
+  if(G.opener === 0 && me.pfRaises === 1 && !me.pfCalls){ combos = rangeChart(tier); label = `${pos}のオープンレンジ`; }
+  else if(G.opener === 0 && me.pfRaises === 1){ combos = rangePct(0.12); label = "3ベットにコールしたレンジ"; }
+  else if(G.opener === 0 && me.pfRaises >= 2){ combos = rangePct(0.04); label = "4ベットのレンジ"; }
+  else if(me.pfRaises >= 1){ combos = spot ? fromDef(["3bet"]) : rangePct(0.06); label = "3ベットのレンジ"; }
+  else if(me.pfCalls > 0 && !me.limped){ combos = spot ? fromDef(["call"]) : rangePct(0.22); label = "コールしたレンジ"; }
+  else if(me.limped){ combos = rangePct(0.5); label = "リンプしたレンジ"; }
+  else if(G.street > 0 || (pos === "BB" && G.raiseCount === 0)){ combos = COMBOS; label = "BBのレンジ（すべての手札）"; }
+  else if(G.raiseCount === 0){ combos = rangeChart(tier); label = `${pos}でオープンできるレンジ`; }
+  else if(G.raiseCount === 1 && G.opener > 0){ combos = fromDefSpot(["call","3bet"]); label = "ディフェンスするレンジ"; }
+  else { combos = rangePct(0.08); label = "3ベットに続けるレンジ"; }
+  return { combos, label, aggr: me.aggr.slice() };
+}
+function filterRange(rg, board){
+  const blocked = new Uint8Array(64); board.forEach(c => blocked[c] = 1);
+  return rg.combos.filter(h => {
+    if(blocked[h[0]] || blocked[h[1]]) return false;
+    if(board.length >= 3) for(let s = 1; s <= G.street; s++) if(rg.aggr[s] && !improves(h, board.slice(0, s + 2))) return false;
+    return true;
+  });
+}
+let rvrCache = null;
+function rangeCompare(){
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(rvrCache && rvrCache.key === key) return rvrCache.val;
+  const opp = primaryOpp(); if(!opp) return null;
+  const board = G.board, post = board.length >= 3;
+  const oRg = oppRanges(0).find(r => r.name === opp.name), mRg = myRange();
+  const side = (rg) => {
+    const list = filterRange(rg, board);
+    const cats = {}, cells = {};
+    list.forEach(h => {
+      const k = post ? postCat(h, board) : preCat(h[0], h[1]);
+      cats[k] = (cats[k] || 0) + 1;
+      const [r, c] = rcOf(h[0], h[1]), ck = r * 13 + c;
+      (cells[ck] = cells[ck] || {})[k] = (cells[ck][k] || 0) + 1;
+    });
+    const n = list.length || 1;
+    Object.keys(cats).forEach(k => cats[k] /= n);
+    const cellCat = {};
+    Object.entries(cells).forEach(([ck, m]) => { cellCat[ck] = Object.entries(m).sort((x, y) => y[1] - x[1])[0][0]; });
+    return { list, cats, cellCat, n: list.length, label: rg.label };
+  };
+  const me = side(mRg), op = side(oRg);
+  // レンジ同士の勝率
+  let win = 0, it = 0;
+  const known = new Uint8Array(64); board.forEach(c => known[c] = 1);
+  const deck = ALL.filter(c => !known[c]);
+  if(me.n && op.n) for(let k = 0; k < 2000; k++){
+    const a = me.list[Math.floor(rnd() * me.n)], b = op.list[Math.floor(rnd() * op.n)];
+    if(a[0] === b[0] || a[0] === b[1] || a[1] === b[0] || a[1] === b[1]) continue;
+    const used = new Set(a.concat(b)); const d = deck.filter(c => !used.has(c)); let len = d.length;
+    const bd = board.slice(); while(bd.length < 5){ const j = Math.floor(rnd() * len); bd.push(d[j]); d[j] = d[--len]; }
+    const x = evaluate(a.concat(bd)), y = evaluate(b.concat(bd));
+    win += x > y ? 1 : x === y ? 0.5 : 0; it++;
+  }
+  const val = { me, op, opp, post, rvr: it ? win / it : 0.5 };
+  rvrCache = { key, val };
+  return val;
+}
+function rangeGrid(side, cats, mine){
+  let h = "";
+  for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){
+    const k = side.cellCat[r * 13 + c];
+    const isMine = mine && mine[0] === r && mine[1] === c;
+    h += `<i class="${k ? "rc-" + k : ""} ${isMine ? "me" : ""}"></i>`;
+  }
+  return `<div class="rgx">${h}</div>`;
+}
+function catBar(side, cats){
+  return `<div class="wb" style="height:10px">${cats.map(c => side.cats[c.k] ? `<i class="rc-${c.k}" style="width:${(side.cats[c.k] * 100).toFixed(1)}%"></i>` : "").join("")}</div>`;
+}
+function rangePanelHTML(){
+  const me = G.players[0];
+  if(!cfg.advice || !me.hole.length || me.folded || G.phase === "done" || live().length < 2) return "";
+  const X = rangeCompare(); if(!X) return "";
+  const cats = X.post ? POST_CATS : PRE_CATS;
+  const info = handInfo(cs(me.hole[0]), cs(me.hole[1]));
+  const rows = cats.map(c => `<tr><td><i class="rc-${c.k}"></i>${c.name}</td><td>${pctS(X.me.cats[c.k] || 0, 0)}</td><td>${pctS(X.op.cats[c.k] || 0, 0)}</td></tr>`).join("");
+  const strong = X.post ? [(X.me.cats.st || 0), (X.op.cats.st || 0)] : null;
+  const adv = X.rvr >= 0.53 ? "あなたのレンジが有利" : X.rvr <= 0.47 ? `${esc(X.opp.name)}のレンジが有利` : "ほぼ互角";
+  return `<div class="panel rvr">
+    <div class="ptitle">レンジ比較<span class="sp"></span><small>${X.post ? "今のボードでの強さ" : "手札の種類"}で色分け</small></div>
+    <div class="rvr-g">
+      <div><div class="rvr-h">あなた<span>${esc(X.me.label)}・${X.me.n}通り</span></div>${rangeGrid(X.me, cats, [info.row, info.col])}${catBar(X.me, cats)}</div>
+      <div><div class="rvr-h">${esc(X.opp.name)}<span>${esc(X.op.label)}・${X.op.n}通り</span></div>${rangeGrid(X.op, cats, null)}${catBar(X.op, cats)}</div>
+    </div>
+    <table class="rvr-t"><tr><th></th><th>あなた</th><th>${esc(X.opp.name)}</th></tr>${rows}</table>
+    <div class="rvr-eq">
+      <div class="rvr-eqbar"><i style="width:${(X.rvr * 100).toFixed(1)}%"></i></div>
+      <div class="rvr-eqt"><span>あなた <b>${pctS(X.rvr, 0)}</b></span><span class="c">${adv}</span><span><b>${pctS(1 - X.rvr, 0)}</b> ${esc(X.opp.name)}</span></div>
+    </div>
+    <p class="sub" style="margin-top:8px">レンジ同士で戦った時の勝率です（あなたの今の手札1つではなく、このアクションをする時にあり得る手札全体）。${strong ? `強い役の割合は あなた${pctS(strong[0],0)}・${esc(X.opp.name)}${pctS(strong[1],0)}${strong[0] > strong[1] + 0.03 ? "で、ナッツに近い手札はあなたの方が多い（大きく打ちやすい）" : strong[1] > strong[0] + 0.03 ? "で、強い手札は相手の方が多い（大きく打たれたら慎重に）" : ""}。` : "ピンクの枠があなたの今の手札です。"}</p>
+  </div>`;
+}
 function stackBar(bw, h){
   return `<div class="wb" style="height:${h}px">${BUCKETS.map(b => bw[b.k] > 0.004 ? `<i class="${b.k}" style="width:${(bw[b.k] * 100).toFixed(1)}%"></i>` : "").join("")}</div>`;
 }
@@ -1296,6 +1455,21 @@ function mySeatHTML(p, pt, pos){
     <div class="nm">あなた<span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span></div>
     <div class="stk">${fmt(p.stack)}</div>
     <div class="act">${turn ? "あなたの番" : win ? `<b>+${fmt(p.won)}</b>` : p.act || "&nbsp;"}</div>
+  </div>`;
+}
+// 画面下に固定：自分の手札（スクロールしなくても常に見える）
+function myStripHTML(){
+  const me = G.players[0];
+  if(!me.hole.length) return "";
+  const pos = posInfo(0);
+  const hand = me.folded ? "フォールド" : G.board.length ? CAT_NAME[catOf(evaluate(me.hole.concat(G.board)))] : tierBadgeText(me);
+  const won = G.phase === "done" && me.won > 0;
+  return `<div class="ms ${me.folded ? "fold" : ""} ${won ? "win" : ""}">
+    <div class="cards">${me.hole.map(c => card(cs(c), "md")).join("")}</div>
+    <div class="ms-i">
+      <div class="ms-h">${hand}</div>
+      <div class="ms-s"><span class="pr-pos ${pos.name === "BTN" ? "btn" : ""}">${pos.name}</span><b>${fmt(me.stack)}</b><span>${(me.stack / G.bb).toFixed(1)}BB${me.bet ? `・ベット中 ${fmt(me.bet)}` : ""}${won ? `・<b class="plus">+${fmt(me.won)}</b>` : ""}</span></div>
+    </div>
   </div>`;
 }
 function seatHTML(p){
@@ -1491,7 +1665,7 @@ function barHTML(myTurn){
       ${canRaise ? `<button class="btn primary" onclick="Practice.sizing()">${G.currentBet === 0 ? "ベット" : "レイズ"}</button>` : ""}
     </div>`;
   }
-  return `<div class="pr-bar"><div class="in">${inner}</div></div>`;
+  return `<div class="pr-bar ${myTurn ? "turn" : ""}"><div class="in">${myStripHTML()}${inner}</div></div>`;
 }
 
 // ---------------------------------------------------------------------
