@@ -1148,6 +1148,8 @@ function css(){
   .pro-l:first-child{border-top:none;padding-top:0}
   .pro-l span{font-size:11px;font-weight:900;color:#b99bff;padding-top:2px}
   .pro-l b{color:#7ff0ff}
+  .pro-x{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
+  .pro-x small{display:block;font-size:10px;opacity:.8}
   .pro-c{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:9px 12px;border-radius:12px}
   .pro-c b{font-size:16px;font-weight:900;white-space:nowrap}
   .pro-c span{font-size:12px;color:var(--sub)}
@@ -1504,6 +1506,7 @@ function cheatHTML(tab){
 // ---------------------------------------------------------------------
 const EQ_BUCKETS = [[0, 0.2, "〜20%"], [0.2, 0.35, "20〜35%"], [0.35, 0.5, "35〜50%"], [0.5, 0.65, "50〜65%"], [0.65, 1.01, "65%〜"]];
 const NEED_OPTS = [0.2, 0.25, 0.29, 0.33, 0.4];
+const QZ_TOL = 0.05;   // ざっくり見積もれれば正解（区切りの±5%まで）
 const qKey = () => `${G.handNo}|${G.street}|${G.actions}`;
 function quizPending(){
   return cfg.quiz && cfg.advice && G && G.phase === "play" && G.toAct === 0 && !(ui.quiz && ui.quiz.key === qKey() && ui.quiz.done);
@@ -1515,18 +1518,18 @@ function quizHTML(){
   if(!ui.quiz || ui.quiz.key !== key) ui.quiz = { key, eq: null, need: null, done: false };
   const q = ui.quiz, needQ = quizNeedsCall(a);
   if(q.done){
-    const b = EQ_BUCKETS[q.eq], hit = a.eq >= b[0] && a.eq < b[1];
-    const nHit = needQ ? Math.abs(NEED_OPTS[q.need] - a.req) <= 0.03 : null;
+    const b = EQ_BUCKETS[q.eq], exactHit = a.eq >= b[0] && a.eq < b[1], hit = a.eq >= b[0] - QZ_TOL && a.eq < b[1] + QZ_TOL;
+    const nHit = needQ ? Math.abs(NEED_OPTS[q.need] - a.req) <= 0.05 : null;
     return `<div class="panel quiz done"><div class="ptitle">答え合わせ</div>
-      <div class="qz-r ${hit ? "ok" : "ng"}"><span>勝率</span><b>${hit ? "正解" : "はずれ"}</b><em>予想 ${b[2]} → 実際 ${pctS(a.eq, 0)}</em></div>
+      <div class="qz-r ${hit ? "ok" : "ng"}"><span>勝率</span><b>${exactHit ? "正解" : hit ? "ほぼ正解" : "はずれ"}</b><em>予想 ${b[2]} → 精密計算 ${pctS(a.eq, 0)}</em></div>
       ${hit ? "" : explainEq(a, b)}
       ${needQ ? `<div class="qz-r ${nHit ? "ok" : "ng"}"><span>必要勝率</span><b>${nHit ? "正解" : "はずれ"}</b><em>予想 ${pctS(NEED_OPTS[q.need], 0)} → 実際 ${pctS(a.req, 0)}</em></div>
         ${nHit ? "" : explainNeed(a, NEED_OPTS[q.need])}
         <p class="sub" style="margin-top:6px">実現率を掛けた勝率 ${pctS(a.eqR, 0)} と、余裕込みの必要勝率 ${pctS(a.need, 0)} を比べると → <b style="color:var(--text)">${a.eqR >= a.need ? "コールに足りる" : "コールには足りない"}</b></p>` : ""}
       <p class="sub" style="margin-top:6px">これまでの正解率：勝率 ${stats.qN ? pctS(stats.qHit / stats.qN, 0) : "—"}（${stats.qN}問）${stats.qNeedN ? `・必要勝率 ${pctS(stats.qNeedHit / stats.qNeedN, 0)}（${stats.qNeedN}問）` : ""}</p></div>`;
   }
-  return `<div class="panel quiz"><div class="ptitle">予想してから答え合わせ<span class="sp"></span><small>数字は答えると表示</small></div>
-    <p class="qz-q">1. あなたの勝率は？<small>相手のアクションから推定したレンジに対して</small></p>
+  return `<div class="panel quiz"><div class="ptitle">ざっくり見積もってから答え合わせ<span class="sp"></span><small>±5%なら正解</small></div>
+    <p class="qz-q">1. あなたの勝率はだいたい？<small>相手のレンジ・覚えている対決の型・アウツで見積もる</small></p>
     <div class="qz-o">${EQ_BUCKETS.map((b, i) => `<button class="${q.eq === i ? "on" : ""}" onclick="Practice.qAns('eq',${i})">${b[2]}</button>`).join("")}</div>
     ${needQ ? `<p class="qz-q">2. 必要勝率は？<small>コール ${fmt(a.toCall)}・ポット ${fmt(a.pot)}</small></p>
     <div class="qz-o">${NEED_OPTS.map((v, i) => `<button class="${q.need === i ? "on" : ""}" onclick="Practice.qAns('need',${i})">${pctS(v, 0)}</button>`).join("")}</div>` : ""}
@@ -1588,8 +1591,8 @@ function qAns(kind, i){
   if(q.eq != null && (!needQ || q.need != null)){
     q.done = true;
     const b = EQ_BUCKETS[q.eq];
-    stats.qN++; if(a.eq >= b[0] && a.eq < b[1]) stats.qHit++;
-    if(needQ){ stats.qNeedN++; if(Math.abs(NEED_OPTS[q.need] - a.req) <= 0.03) stats.qNeedHit++; }
+    stats.qN++; if(a.eq >= b[0] - QZ_TOL && a.eq < b[1] + QZ_TOL) stats.qHit++;
+    if(needQ){ stats.qNeedN++; if(Math.abs(NEED_OPTS[q.need] - a.req) <= 0.05) stats.qNeedHit++; }
     save(LS_STATS, stats);
   }
   render();
@@ -1782,6 +1785,48 @@ function thinkPanelHTML(){
 //  プロが卓で考えること（5行だけ）
 // ---------------------------------------------------------------------
 let proCache = null;
+// プロが頭の中でやる「ざっくり見積もり」（覚えている型・アウツ・人数ルールだけで出す）
+function proEstimate(a, W){
+  const r10 = x => Math.round(x * 10) / 10, r5 = x => Math.round(x * 20) / 20;
+  const wari = x => `${Math.round(x * 10)}割`;
+  const n = W && W.multi > 1 ? W.multi : 1;
+  let hu, txt;
+  if(G.street > 0 && W && W.ahead != null){
+    const ah = W.ahead > 0.02 && W.ahead < 0.08 ? 0.05 : W.ahead < 0.98 && W.ahead > 0.92 ? 0.95 : r10(W.ahead), bh = 1 - ah;
+    // アウツ：役が良くなるカード＋ボードより上のカード（ペアになれば逆転しうる・1枚3アウツ、割り引いて2）
+    const top = Math.max(...G.board.map(c => c >> 2)), me0 = G.players[0];
+    const paired = me0.hole[0] >> 2 === me0.hole[1] >> 2 || me0.hole.some(c => G.board.some(x => x >> 2 === c >> 2));
+    const over = paired ? 0 : me0.hole.filter(c => (c >> 2) > top).length * 2;
+    const o = (a.outs && a.outs.outs ? a.outs.outs : 0) + over;
+    const bdl = G.board.length;
+    const oc = bdl === 3 ? Math.min(o * 4 - Math.max(0, o - 8), 60) / 100 : bdl === 4 ? (o * 2) / 100 : 0;   // 4倍は8枚超で少し引く
+    const keep = bdl === 3 ? 0.85 : bdl === 4 ? 0.92 : 1;
+    hu = r5(ah * keep + bh * oc);
+    const outTxt = bdl === 5 ? "リバーなので逆転はない" : o ? `負けている時はアウツ${o}枚${over ? `（オーバーカード分${over}枚込み）` : ""}×${bdl === 3 ? 4 : 2}≒${Math.round(oc * 100)}%で逆転` : "負けている時の逆転はほぼない（アウツなし）";
+    txt = ah >= 0.95 ? `相手のレンジのほぼ全部に勝っている${bdl < 5 ? "（まくられるのは1割前後）" : ""}` :
+          ah <= 0.05 ? `相手のレンジのほぼ全部に負けている。${outTxt}` :
+          `相手のレンジの約${wari(ah)}に勝っている。${outTxt}`;
+  }else if(W){
+    const g = r10(W.bw.b4 + W.bw.b3), b = r10(W.bw.b1 + W.bw.b0), e = Math.max(0, 1 - g - b);
+    hu = r5(g * 0.67 + e * 0.5 + b * 0.3);
+    const exB = (W.ex.b0.length ? W.ex.b0 : W.ex.b1).slice(0, 2).join("・"), exG = (W.ex.b4.length ? W.ex.b4 : W.ex.b3).slice(0, 2).join("・");
+    const parts = [];
+    if(g >= 0.1) parts.push(`有利な相手（${exG ? exG + "など・" : ""}約65〜70%）が${wari(g)}`);
+    if(b >= 0.1) parts.push(`不利な相手（${exB ? exB + "など・" : ""}約30%）が${wari(b)}`);
+    if(e >= 0.1) parts.push(`五分五分が${wari(e)}`);
+    txt = parts.join("、");
+  }else return null;
+  let est = hu;
+  if(n > 1){
+    // 複数人：1人ずつの勝率（覚えている型でざっくり）を掛け算
+    const M = multiBreakdown();
+    const each = M.each.map(e => e.name === W.opp.name ? hu : Math.max(0.05, r5(e.eq)));
+    est = r5(Math.min(hu, each.reduce((x, y) => x * y, 1) * 1.15));
+    const others = M.each.filter(e => e.name !== W.opp.name);
+    txt = `${esc(W.opp.name)}に対して：${txt} → 約${Math.round(hu * 100)}%。${others.map(e => `${esc(e.name)}には約${Math.round(Math.max(0.05, r5(e.eq)) * 100)}%`).join("、")}。全員に勝つ必要があるので掛け算（${[hu].concat(others.map(e => Math.max(0.05, r5(e.eq)))).map(x => Math.round(x * 100) + "%").join("×")}、引き分けや相手同士の潰し合いで少し上に）`;
+  }
+  return { est, hu, txt };
+}
 function proLinesHTML(){
   const me = G.players[0];
   if(!cfg.advice || G.phase !== "play" || G.toAct !== 0 || !me.hole.length) return "";
@@ -1804,39 +1849,50 @@ function proLinesHTML(){
     const act = G.street > 0 && opp.aggr[G.street] ? "ベット" : opp.id === G.opener ? `${posInfo(opp.id).name}からオープン` : opp.pfRaises ? "3ベット" : opp.pfCalls ? "コール" : "まだ動いていない";
     l2 = `${esc(opp.name)}が${act} → ${pct >= 0.99 ? "どんな手札もありうる" : `上位約${pctS(pct, 0)}の手札`}${G.street > 0 && opp.aggr[G.street] ? "（ボードに絡んだ手札が中心）" : ""}`;
   }
-  // ③ 自分の手札 vs レンジ
-  let l3;
-  if(W){
-    const good = W.bw.b4 + W.bw.b3, bad = W.bw.b1 + W.bw.b0;
-    const exB = (W.ex.b0.length ? W.ex.b0 : W.ex.b1).slice(0, 3).join("・"), exG = (W.ex.b4.length ? W.ex.b4 : W.ex.b3).slice(0, 2).join("・");
-    l3 = G.street > 0 && W.ahead != null
-      ? `今リードしているのはレンジの${pctS(W.ahead, 0)}${W.behind > 0.05 ? `、負けている相手（${exB}など）からは${pctS(W.comeback, 0)}で逆転` : ""}`
-      : `${info.name}は ${exG ? `${exG}などには有利` : ""}${exG && exB ? "、" : ""}${exB ? `${exB}などには不利` : ""}（有利${pctS(good, 0)}・不利${pctS(bad, 0)}）`;
-  }else l3 = info.name;
-  // ④ 値段
+  // ③ 見積もり（覚えている型・アウツ・人数ルール）
+  const E = a.kind === "open" || a.kind === "push" ? null : proEstimate(a, W);
+  const pc = x => x < 0.05 ? "5%未満" : `約${Math.round(x * 100)}%`;
+  const l3 = E ? `${E.txt} → ざっくり<b>${pc(E.est)}</b>` : null;
+  const Rlost = E && E.est >= 0.1 && a.R < 0.95 && (a.kind === "defend" || a.kind === "vs3bet" || G.street > 0);
+  const estR = E ? Math.round(E.est * (Rlost ? a.R : 1) * 20) / 20 : null;
+  const rTxt = Rlost ? `（先に行動する不利で、回収できるのは${pc(estR)}）` : "";
+  // ④ 値段（ベットの大きさから覚えている必要勝率）
   let l4;
   if(a.toCall > 0 && a.kind !== "open" && a.kind !== "push"){
     const oppBet = Math.max(0, G.currentBet - me.bet), ratio = oppBet / Math.max(1, a.pot - oppBet);
     const near = BET_SIZES.reduce((x, y) => Math.abs(y[1] - ratio) < Math.abs(x[1] - ratio) ? y : x, BET_SIZES[0]);
-    l4 = `コール${fmt(a.toCall)}（約${near[0]}ポット）→ 必要勝率 <b>${pctS(a.req, 0)}</b>。勝率は約${pctS(a.eqR, 0)}`;
+    const memo = near[1] / (1 + 2 * near[1]);
+    l4 = G.street === 0
+      ? `コール${fmt(a.toCall)}でポット${fmt(a.pot + a.toCall)}を取りに行く → 必要勝率 <b>約${Math.round(a.need * 20) * 5}%</b>${a.need > a.req + 0.01 ? "（後ろの人の分の余裕込み）" : ""}`
+      : `相手のベットは約${near[0]}ポット → 必要勝率 <b>約${Math.round(memo * 100)}%</b>（覚えておく数字）`;
   }else if(a.kind === "open"){
     l4 = a.toCall > 0 ? "誰もレイズしていない → レイズかフォールドの2択（リンプはしない）" : "BBで追加の支払いなし → 無料で見られる";
   }else if(a.kind === "push"){
     l4 = `残り${(eff / bb).toFixed(1)}BB → オールインかフォールドの2択`;
   }else{
-    l4 = `ベットされていない → 勝率約${pctS(a.eq, 0)}で、${a.eq >= 0.6 ? "打って価値を取る" : a.eq >= 0.45 ? "小さく打つかチェック" : "無理せずチェック"}場面`;
+    const e = E ? E.est : a.eq;
+    l4 = `ベットされていない → ${e >= 0.6 ? "有利なので打って価値を取る" : e >= 0.45 ? "小さく打つかチェック" : "無理せずチェック"}場面`;
   }
-  // ⑤ 結論（短く）
+  // ⑤ 結論（見積もりの数字で）
+  const e5 = estR != null ? pc(estR) : "";
+  const nd = `${Math.round(a.need * 20) * 5}%`;
   const short = a.kind === "open" ? (a.rec.type === "raise" ? `${info.name}は${pos}のオープン範囲内` : a.rec.type === "check" ? "強くないので無料で見る" : `${info.name}は${pos}のオープン範囲外`)
-    : a.toCall > 0 ? (a.rec.type === "fold" ? `勝率${pctS(a.eqR, 0)} ＜ 必要${pctS(a.need, 0)}` : a.rec.type === "call" ? `勝率${pctS(a.eqR, 0)} ≧ 必要${pctS(a.need, 0)}` : "大きく有利・ブラフにも使える")
+    : a.kind === "push" ? (a.rec.type === "raise" ? "この残りスタックならオールインできる強さ" : "もっと強い手札を待つ")
+    : a.toCall > 0 ? (a.rec.type === "raise" ? "大きく有利・レイズで価値を取る"
+        : E && (estR >= a.need) !== (a.rec.type !== "fold")
+          ? `見積もり${e5}と必要約${nd}が近い境目。精密計算では${pctS(a.eqR, 0)}なので${a.rec.type === "fold" ? "足りない" : "足りる"}`
+          : `見積もり${e5} ${a.rec.type === "fold" ? "＜" : "≧"} 必要約${nd}`)
     : (a.rec.type === "raise" ? (a.eq >= 0.52 ? "有利なので価値を取る" : "ドローでセミブラフ") : "中くらい以下の強さなのでポットを大きくしない");
+  // 答え合わせ用の精密な数字（簡単に）
+  const exact = a.kind === "open" ? "" : `<div class="pro-x">精密計算（答え合わせ）：勝率 ${pctS(a.eq, 1)}${Math.abs(a.R - 1) > 0.02 ? ` × 実現率${a.R.toFixed(2)} = ${pctS(a.eqR, 1)}` : ""}${a.toCall > 0 ? `・必要 ${pctS(a.need, 1)}` : ""}<small>（アプリが相手レンジとの対戦を数千回シミュレーション。プロは本番では計算しない）</small></div>`;
   const cls = a.rec.type === "fold" ? "f" : a.rec.type === "raise" ? "r" : "c";
   const html = `<div class="panel pro">
     <div class="pro-l"><span>位置</span><p>${l1}</p></div>
     <div class="pro-l"><span>相手</span><p>${l2}</p></div>
-    <div class="pro-l"><span>手札</span><p>${l3}</p></div>
+    ${l3 ? `<div class="pro-l"><span>見積</span><p>${l3}${rTxt}</p></div>` : ""}
     <div class="pro-l"><span>値段</span><p>${l4}</p></div>
     <div class="pro-c ${cls}"><b>${esc(a.rec.label)}</b><span>${short}</span></div>
+    ${exact}
   </div>`;
   proCache = { key, html };
   return html;
