@@ -251,7 +251,16 @@ function buildPots(){
 function finishHand(){
   G.phase = "done"; clearTimeout(G.timer); ui.sizing = false;
   stats.hands++;
-  try{ G.review = buildReview(); if(G.review.score != null){ stats.scoreSum += G.review.score; stats.scoreN++; } }catch(e){ G.review = null; }
+  try{
+    G.review = buildReview();
+    if(G.review.score != null){ stats.scoreSum += G.review.score; stats.scoreN++; }
+    if(!stats.st) stats.st = [[0,0],[0,0],[0,0],[0,0]];
+    if(!stats.kd) stats.kd = {};
+    G.review.items.forEach(x => {
+      stats.st[x.street][0] += x.pts; stats.st[x.street][1]++;
+      const k = scoreKind(x); stats.kd[k] = stats.kd[k] || [0,0]; stats.kd[k][0] += x.pts; stats.kd[k][1]++;
+    });
+  }catch(e){ G.review = null; }
   const me = G.players[0];
   // 脱落
   if(G.tour){
@@ -550,7 +559,7 @@ function advise(){
   const maxTo = me.bet + me.stack, minTo = Math.min(G.currentBet + G.minRaise, maxTo);
   const clamp = x => Math.min(maxTo, Math.max(minTo, Math.round(x / 5) * 5));
   const Rc = (type, label, to, reason) => ({ type, label, to: to != null ? clamp(to) : null, reason });
-  let rec, kind = "post", need = req, spot = null, ip, R;
+  let rec, kind = "post", need = req, spot = null, ip, R, meta = {};
   const stackBB = (me.stack + me.bet) / bb;
   const outs = outsInfo(hole, board);
   if(G.street === 0){
@@ -562,12 +571,14 @@ function advise(){
     if(stackBB <= 15 && G.tour){
       kind = "push";
       const th = 6 + stackBB * 0.25 + (G.raiseCount ? 2 : 0);
+      meta = { ch, th };
       rec = ch >= th ? Rc("raise", "オールイン", maxTo, `残り${stackBB.toFixed(1)}BBのショートスタック。プッシュ／フォールドで戦う局面で、この手札はオールインできる強さです（ショートスタックでは実現率の問題がなくなるため、勝率そのもので判断します）`)
                      : toCall === 0 ? Rc("check", "チェック", null, "ショートスタックで手札が弱いので、無料で見られるならチェック")
                      : Rc("fold", "フォールド", null, `ショートスタックでは弱い手札でチップを使わず、強い手札でのオールインを待ちます`);
       R = 1;
     }else if(G.raiseCount === 0){
       kind = "open";
+      meta = { tier: info.tier, posTier: pos.tier };
       if(pos.name === "BB" && toCall === 0 && info.tier > 1) rec = Rc("check", "チェック", null, `BBでリンプが入っただけの場面。${info.name} はアイソレーション（リンパーを狙ったレイズ）するほど強くないので、無料でフロップを見ます`);
       else if(info.tier <= pos.tier) rec = Rc("raise", `レイズ ${fmt((2.5 + limpers) * bb)}`, (2.5 + limpers) * bb,
           `${info.name} は ${pos.name} からオープンできる範囲（オープンレンジ表の${TIER_LABEL[info.tier]}）。${limpers ? `リンパーが${limpers}人いるので1人につき1BB足します` : "2.5BBでオープン"}`);
@@ -583,6 +594,7 @@ function advise(){
       const eqR = eq * R;
       need = dc.need;
       const act = decideDef(eqOpen, eqR, need, info.name, dc.tier);
+      meta = { act };
       // 表の自分のマスを、より正確な値で上書き（表とおすすめを一致させる）
       dc.grid[info.row][info.col] = { eq, R, eqR, act, name: info.name };
       const base = `${opener.name}（${spot.opener}）の${spot.openBB}BBオープンに対して、あなたは${spot.hero}（${ip ? "インポジション" : "アウトオブポジション"}）。${spot.opener}のオープンレンジに対する推定勝率${pctS(eq,0)} × 実現率${R.toFixed(2)} = ${pctS(eqR,0)}。必要勝率は${pctS(req,0)}（ブラインド・アンティ込みのポット${fmt(pot)}にコール${fmt(toCall)}）${dc.margin > 0 ? `に、後ろの人・他のコーラーの分の余裕${pctS(dc.margin,0)}を足して${pctS(need,0)}` : ""}`;
@@ -597,6 +609,7 @@ function advise(){
       R = realize(ip, 0, hole[0], hole[1], eq);
       const premium = ch >= 14 || (hole.some(c => c >> 2 === 14) && hole.some(c => c >> 2 === 13));
       const eqR = eq * R;
+      meta = { premium };
       if(premium) rec = Rc("raise", stackBB < 40 ? "オールイン" : `4ベット ${fmt(G.currentBet * 2.3)}`, stackBB < 40 ? maxTo : G.currentBet * 2.3, "QQ以上・AKは3ベットに対しても押し返せる強さです");
       else if(eqR >= req) rec = Rc("call", `コール ${fmt(toCall)}`, null, `3ベット以上の強いレンジ（上位約6%）に対して、推定勝率${pctS(eq,0)} × ${rText(R, ip)} = ${pctS(eqR,0)} ≧ 必要勝率${pctS(req,0)}`);
       else rec = Rc("fold", "フォールド", null, `3ベット以上の強いレンジ（上位約6%）に対して、推定勝率${pctS(eq,0)} × ${rText(R, ip)} = ${pctS(eqR,0)} は必要勝率${pctS(req,0)}に届きません`);
@@ -621,7 +634,7 @@ function advise(){
   }
   const eqR = eq * R;
   const ev = eqR * (pot + toCall) - toCall;
-  const val = { eq, R, eqR, ip, req, need, ev, toCall, pot, rec, outs, ranges, kind, spot };
+  const val = { eq, R, eqR, ip, req, need, ev, toCall, pot, rec, outs, ranges, kind, spot, meta };
   cache.adv = { key, val };
   return val;
 }
@@ -697,6 +710,10 @@ function actualEquity(hole, board, opps){
   }
   return win / n;
 }
+function scoreKind(x){
+  if(x.street === 0) return x.kind === "open" ? "オープン" : x.kind === "defend" ? "オープンへの対応" : x.kind === "push" ? "プッシュ／フォールド" : "3ベット以降";
+  return x.toCall > 0 ? "ベットされた時" : "先に打つかどうか";
+}
 const ACT_NAME = { fold:"フォールド", check:"チェック", call:"コール", raise:"ベット／レイズ" };
 const STREET = ["プリフロップ","フロップ","ターン","リバー"];
 function judge(d){
@@ -741,7 +758,52 @@ function judge(d){
   }else{
     grade = 2; title = "まずまず"; why = d.rec.reason;
   }
-  return { grade, title, why };
+  const sc = scorePts(d, my, rt, margin, need, eqR);
+  grade = sc.pts >= 85 ? 3 : sc.pts >= 60 ? 2 : sc.pts >= 35 ? 1 : 0;
+  if(sc.pts >= 85 && cls(my) !== cls(rt)) title = "ほぼ互角の選択";
+  return Object.assign({ grade, title, why }, sc);
+}
+// 判断を100点満点で採点：アクション（期待値の損失・境目からの距離）＋ 金額
+function scorePts(d, my, rt, margin, need, eqR){
+  const bb = d.bb, m = d.meta || {}, cls = t => t === "check" || t === "call" ? "pass" : t;
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const evPts = lossBB => 100 * Math.exp(-lossBB / 4);        // 1BB損→78点、3BB→47点、6BB→22点
+  const callEV = eqR * (d.pot + d.toCall) - d.toCall;           // フォールドとの差
+  let act = 100, size = null, loss = null, basis = "";
+  if(cls(my) === cls(rt)){
+    act = 100; basis = "おすすめと同じアクション";
+    if(my === "raise" && d.rec.to && d.amount){
+      const dev = Math.abs(Math.log(d.amount / d.rec.to));
+      size = Math.round(100 - clamp((dev - 0.15) * 90, 0, 100));
+      basis += size < 100 ? `・金額は目安${fmt(d.rec.to)}の${(d.amount / d.rec.to).toFixed(1)}倍` : "・金額も目安どおり";
+    }
+  }else if(d.kind === "push" && m.th != null){
+    const dist = Math.abs(m.ch - m.th);
+    act = clamp(88 - dist * 11, 10, 88); basis = `プッシュ基準との差 ${dist.toFixed(1)}点（チェン式）`;
+  }else if(d.kind === "open" && m.tier != null){
+    const dist = Math.abs(m.tier - m.posTier);
+    if(my === "call"){ act = rt === "raise" ? 45 : clamp(40 - dist * 10, 10, 40); basis = "リンプ（コールで参加）は原則しない"; }
+    else{ act = clamp(78 - (dist - 1) * 22, 8, 78); basis = dist <= 1 ? "レンジの境目の手札" : `レンジの境目から${dist}段階${my === "fold" ? "内側" : "外側"}`; }
+    if(my === "raise" && rt === "check"){ act = 70; basis = "BBでのアイソレーション（攻めすぎだが小さなミス）"; }
+  }else if(d.toCall > 0 && ((my === "fold" && rt !== "raise") || (my === "call" && rt === "fold"))){
+    loss = Math.abs(callEV) / bb; act = evPts(loss);
+    if(Math.abs(margin) < 0.04) act = Math.max(act, 75);
+    if(my === "call" && d.outs && d.outs.outs >= 8) act = Math.max(act, 60);
+    basis = `コールとフォールドの期待値の差 約${loss.toFixed(1)}BB`;
+  }else if(my === "fold" && rt === "raise"){
+    loss = Math.max(0, callEV) / bb + 0.5; act = Math.min(60, evPts(loss)); basis = `レイズすべき手札を捨てた（少なくとも約${loss.toFixed(1)}BBの損）`;
+  }else if(my === "raise"){
+    const draw = d.outs && d.outs.outs >= 8 && d.board.length < 5;
+    act = clamp(30 + (d.eq - 0.2) * 110 + (draw ? 15 : 0), 15, 80);
+    basis = `推定勝率${pctS(d.eq,0)}${draw ? "・強いドロー" : ""}でのレイズ（勝率が低いほど減点）`;
+  }else{
+    const th = d.street === 0 ? 0.62 : d.toCall > 0 ? 0.72 : 0.52;
+    const over = Math.max(0, d.eq - th);
+    act = clamp(85 - over * 150, 45, 85); basis = `レイズの目安（勝率${pctS(th,0)}）を${pctS(over,0)}上回っていた`;
+  }
+  act = Math.round(act);
+  const pts = size == null ? act : Math.round(act * 0.6 + size * 0.4);
+  return { pts, act, size, loss, basis };
 }
 function buildReview(){
   const me = G.players[0];
@@ -751,7 +813,11 @@ function buildReview(){
     return Object.assign({}, d, judge(d), { actual });
   });
   const net = me.stack - G.stack0;
-  const score = items.length ? Math.round(items.reduce((a, x) => a + x.grade, 0) / (items.length * 3) * 100) : null;
+  // 大きなポットの判断ほど重く（重み＝√(ポット/BB)）
+  const wt = x => Math.sqrt(Math.max(1, x.pot / x.bb));
+  const wsum = items.reduce((a, x) => a + wt(x), 0);
+  const score = items.length ? Math.round(items.reduce((a, x) => a + x.pts * wt(x), 0) / wsum) : null;
+  const lossBB = items.reduce((a, x) => a + (x.loss != null && x.pts < 100 ? x.loss : 0), 0);
   // 判断と結果のズレ（運の要素）
   let luck = "";
   const allin = items.filter(x => x.type !== "fold").slice(-1)[0];
@@ -763,9 +829,9 @@ function buildReview(){
   // 相手の手札
   const opp = G.players.filter(p => p.id !== 0 && !p.out && p.hole.length).map(p => ({
     name:p.name, hole:p.hole, folded:p.folded, cat: G.board.length >= 3 ? CAT_NAME[catOf(evaluate(p.hole.concat(G.board)))] : "", won:p.won }));
-  const best = items.filter(x => x.grade === 0)[0] || items.filter(x => x.grade === 1)[0];
-  const lesson = best ? `${STREET[best.street]}の${ACT_NAME[best.type]}：${best.title}` : items.length ? "大きなミスはありませんでした" : "";
-  return { items, net, score, luck, opp, lesson };
+  const best = items.filter(x => x.pts < 85).sort((a, b) => a.pts - b.pts)[0];
+  const lesson = best ? `${STREET[best.street]}の${ACT_NAME[best.type]}：${best.title}（${best.pts}点）` : items.length ? "大きなミスはありませんでした" : "";
+  return { items, net, score, luck, opp, lesson, lossBB };
 }
 function reviewHTML(){
   const R = G.review;
@@ -774,11 +840,13 @@ function reviewHTML(){
   const gradeName = s => s >= 85 ? "S" : s >= 70 ? "A" : s >= 50 ? "B" : s >= 30 ? "C" : "D";
   const gcls = g => g === 3 ? "g3" : g === 2 ? "g2" : g === 1 ? "g1" : "g0";
   const head = `<div class="rv-top">
-      <div class="rv-score ${R.score == null ? "" : R.score >= 70 ? "hi" : R.score >= 50 ? "mid" : "lo"}">${R.score == null ? "—" : gradeName(R.score)}<small>${R.score == null ? "判断なし" : `判断スコア ${R.score}`}</small></div>
-      <div class="rv-sum"><div>このハンドの収支</div><b class="${R.net > 0 ? "plus" : R.net < 0 ? "minus" : ""}">${signed(R.net)}</b><span>${(R.net / G.bb >= 0 ? "+" : "") + (R.net / G.bb).toFixed(1)}BB</span></div>
+      <div class="rv-score ${R.score == null ? "" : R.score >= 70 ? "hi" : R.score >= 50 ? "mid" : "lo"}">${R.score == null ? "—" : gradeName(R.score)}<small>${R.score == null ? "判断なし" : `${R.score}点／100`}</small></div>
+      <div class="rv-sum"><div>このハンドの収支</div><b class="${R.net > 0 ? "plus" : R.net < 0 ? "minus" : ""}">${signed(R.net)}</b><span>${(R.net / G.bb >= 0 ? "+" : "") + (R.net / G.bb).toFixed(1)}BB</span>${R.lossBB > 0.05 ? `<em class="rv-loss">判断ミスによる損 約${R.lossBB.toFixed(1)}BB</em>` : ""}</div>
     </div>`;
   const items = R.items.map(x => `<div class="rv-it">
-      <div class="rv-h"><span class="rv-st">${STREET[x.street]}</span>${x.board.length ? `<div class="cards">${x.board.map(c => card(cs(c), "sm")).join("")}</div>` : `<span class="sub">${x.pos}</span>`}<span class="sp"></span><span class="rv-g ${gcls(x.grade)}">${x.title}</span></div>
+      <div class="rv-h"><span class="rv-st">${STREET[x.street]}</span>${x.board.length ? `<div class="cards">${x.board.map(c => card(cs(c), "sm")).join("")}</div>` : `<span class="sub">${x.pos}</span>`}<span class="sp"></span><span class="rv-g ${gcls(x.grade)}">${x.title}</span><b class="rv-pt ${gcls(x.grade)}">${x.pts}</b></div>
+      <div class="rv-bar"><i class="${gcls(x.grade)}" style="width:${x.pts}%"></i></div>
+      <div class="rv-bd"><span>アクション <b>${x.act}</b></span>${x.size != null ? `<span>金額 <b>${x.size}</b></span>` : ""}<span class="rv-basis">${x.basis}</span></div>
       <div class="rv-row"><span>あなた</span><b>${ACT_NAME[x.type]}${x.amount && x.type === "raise" ? ` ${fmt(x.amount)}` : x.type === "call" ? ` ${fmt(x.amount)}` : ""}</b>
         <span>おすすめ</span><b>${esc(x.rec.label)}</b></div>
       <div class="rv-nums">
@@ -822,7 +890,7 @@ function human(type, to){
   const toCall = Math.min(G.currentBet - me.bet, me.stack);
   const amt = realType === "raise" ? Math.min(to, me.bet + me.stack) : realType === "call" ? toCall : 0;
   G.decisions.push({ street:G.street, board:G.board.slice(), pot:a.pot, toCall:a.toCall, eq:a.eq, req:a.req, ev:a.ev,
-    R:a.R, eqR:a.eqR, ip:a.ip, need:a.need, kind:a.kind, spot:a.spot,
+    R:a.R, eqR:a.eqR, ip:a.ip, need:a.need, kind:a.kind, spot:a.spot, meta:a.meta || {},
     rec:a.rec, type:realType, amount:amt, pos:posInfo(0).name, liveIds: live().filter(p => p.id !== 0).map(p => p.id),
     outs:a.outs, stack:me.stack + me.bet, bet:me.bet, currentBet:G.currentBet, bb:G.bb,
     think: (() => { try{ return thinkCache && thinkCache.key === `${G.handNo}|${G.street}|${G.actions}` ? thinkCache.html : thinkHTML(thinking(a)); }catch(e){ return ""; } })() });
@@ -942,6 +1010,15 @@ function css(){
   .rv-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .rv-h .sp{flex:1}
   .rv-st{font-weight:900;font-size:14px}
+  .rv-pt{font-size:18px;font-weight:900;margin-left:8px;min-width:30px;text-align:right}
+  .rv-pt.g3{color:#3ddc97}.rv-pt.g2{color:var(--warn)}.rv-pt.g1{color:#ff9b54}.rv-pt.g0{color:#ff8a99}
+  .rv-bar{height:5px;border-radius:3px;background:var(--panel2);margin:6px 0 4px;overflow:hidden}
+  .rv-bar i{display:block;height:100%;border-radius:3px}
+  .rv-bar i.g3{background:#3ddc97}.rv-bar i.g2{background:var(--warn)}.rv-bar i.g1{background:#ff9b54}.rv-bar i.g0{background:#ff8a99}
+  .rv-bd{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--sub);margin-bottom:4px}
+  .rv-bd b{color:#fff}
+  .rv-basis{flex-basis:100%}
+  .rv-loss{display:block;font-style:normal;font-size:11px;color:#ff8a99;margin-top:2px}
   .rv-g{font-size:11px;font-weight:900;border-radius:999px;padding:3px 9px;white-space:nowrap}
   .rv-g.g3{background:#0f3a28;color:#3ddc97}
   .rv-g.g2{background:#3a2c0f;color:var(--warn)}
@@ -1066,6 +1143,19 @@ function css(){
   .cm-lb b{color:var(--text);font-size:14px}
   .cm-s{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
   .quiz{border-color:#4a3480}
+  .pro{padding:10px 12px}
+  .pro-l{display:grid;grid-template-columns:38px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.55}
+  .pro-l:first-child{border-top:none;padding-top:0}
+  .pro-l span{font-size:11px;font-weight:900;color:#b99bff;padding-top:2px}
+  .pro-l b{color:#7ff0ff}
+  .pro-c{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:9px 12px;border-radius:12px}
+  .pro-c b{font-size:16px;font-weight:900;white-space:nowrap}
+  .pro-c span{font-size:12px;color:var(--sub)}
+  .pro-c.f{background:#3a1820}.pro-c.f b{color:#ff8a99}
+  .pro-c.c{background:#0f3a28}.pro-c.c b{color:#3ddc97}
+  .pro-c.r{background:#2a1a4d}.pro-c.r b{color:#c7a8ff}
+  .dtl-btn{flex-direction:column;gap:2px;margin-bottom:12px;background:transparent;border-style:dashed}
+  .dtl-btn small{font-size:11px;color:var(--sub);font-weight:600}
   .wc{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
   .qx .wc{border-top-color:#2b3744}
   .wc summary{font-weight:900;font-size:13.5px;cursor:pointer;color:#c7a8ff;margin-bottom:6px}
@@ -1190,7 +1280,9 @@ function setupHTML(){
         <div><span>アドバイスとの一致率</span><b>${agree}</b></div>
         <div><span>トーナメント参加</span><b>${stats.tours.length}回</b></div>
         <div><span>トーナメント最高</span><b>${best}</b></div>
-        <div><span>判断スコア平均</span><b>${stats.scoreN ? Math.round(stats.scoreSum / stats.scoreN) : "—"}</b></div>
+        <div><span>判断スコア平均</span><b>${stats.scoreN ? (stats.scoreSum / stats.scoreN).toFixed(1) + "点" : "—"}</b></div>
+        ${stats.st ? STREET.map((n, i) => stats.st[i][1] ? `<div><span>　${n}（${stats.st[i][1]}回）</span><b>${(stats.st[i][0] / stats.st[i][1]).toFixed(1)}点</b></div>` : "").join("") : ""}
+        ${stats.kd ? Object.entries(stats.kd).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).map(([k, v], i) => `<div><span>　${k}（${v[1]}回）${i === 0 && Object.keys(stats.kd).length > 1 && v[1] >= 3 ? "・苦手" : ""}</span><b>${(v[0] / v[1]).toFixed(1)}点</b></div>`).join("") : ""}
         <div><span>振り返ったハンド</span><b>${fmt(stats.scoreN || 0)}</b></div>
         <div><span>予想の正解率（勝率）</span><b>${stats.qN ? pctS(stats.qHit / stats.qN, 0) : "—"}</b></div>
         <div><span>予想の正解率（必要勝率）</span><b>${stats.qNeedN ? pctS(stats.qNeedHit / stats.qNeedN, 0) : "—"}</b></div>
@@ -1215,15 +1307,25 @@ function tableHTML(){
   h += ringHTML();
   const qp = quizPending();
   h += quizHTML();
-  if(!qp){
-    h += thinkPanelHTML();
-    h += whyPanelHTML();
-    h += rangePanelHTML();
-  }
+  if(!qp) h += proLinesHTML();
   if(G.phase === "done") h += resultHTML() + reviewHTML();
-  if(cfg.advice && myTurn && !qp) h += adviceHTML();
-  if(cfg.prob && me.hole.length && !me.folded) h += probHTML();
-  if(cfg.chart && me.hole.length && !qp) h += chartHTML();
+  // 詳しい分析（ふだんは閉じておく）
+  if(me.hole.length && cfg.advice){
+    h += `<button class="btn big dtl-btn" onclick="Practice.toggleDetail()">${ui.detail ? "詳しい分析を閉じる" : "詳しい分析を見る"}<small>${ui.detail ? "" : "勝率の内訳・レンジ比較・計算方法・表など"}</small></button>`;
+    if(ui.detail){
+      if(!qp){
+        h += thinkPanelHTML();
+        h += whyPanelHTML();
+        h += rangePanelHTML();
+        if(myTurn) h += adviceHTML();
+      }
+      if(cfg.prob && !me.folded) h += probHTML();
+      if(cfg.chart && !qp) h += chartHTML();
+    }
+  }else if(me.hole.length){
+    if(cfg.prob && !me.folded) h += probHTML();
+    if(cfg.chart) h += chartHTML();
+  }
   h += `<div class="panel"><div class="ptitle">ログ<span class="sp"></span>
       <button class="btn sm" onclick="Practice.toggleLog()">${ui.showLog ? "閉じる" : "開く"}</button></div>
     ${ui.showLog ? `<div class="pr-log">${G.log.map(esc).join("<br>")}</div>` : `<div class="pr-log">${esc(G.log[G.log.length - 1] || "")}</div>`}</div>`;
@@ -1286,7 +1388,6 @@ function feltMeterHTML(){
     <b class="fm-big">${pctS(val, 0)}</b>
     <div class="fm-bar"><i style="width:${w}%"></i>${need != null ? `<em style="left:${Math.min(100, need * 100)}%"></em>` : ""}</div>
     <div class="fm-calc">${hasCall ? `${pctS(a.eq,0)}×${a.R.toFixed(2)}・<b>必要 ${pctS(need,0)}</b>` : `相手${live().length - 1}人の推定レンジに対して`}</div>
-    ${feltWhyHTML()}
     ${myTurn ? `<div class="fm-rec ${recCls}">${esc(a.rec.label)}</div>` : ""}
   </div>`;
 }
@@ -1675,6 +1776,70 @@ function thinkPanelHTML(){
   if(!thinkCache || thinkCache.key !== key){ thinkCache = { key, html: thinkHTML(thinking(advise())) }; }
   return `<div class="panel think"><div class="ptitle">プロの思考プロセス<span class="sp"></span><button class="btn sm" onclick="Practice.toggleThink()">${ui.think === false ? "開く" : "閉じる"}</button></div>
     ${ui.think === false ? `<p class="sub">状況整理から結論までの7ステップ</p>` : thinkCache.html}</div>`;
+}
+
+// ---------------------------------------------------------------------
+//  プロが卓で考えること（5行だけ）
+// ---------------------------------------------------------------------
+let proCache = null;
+function proLinesHTML(){
+  const me = G.players[0];
+  if(!cfg.advice || G.phase !== "play" || G.toAct !== 0 || !me.hole.length) return "";
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(proCache && proCache.key === key) return proCache.html;
+  const a = advise(), bb = G.bb, info = handInfo(cs(me.hole[0]), cs(me.hole[1]));
+  const pos = posInfo(0).name;
+  const eff = Math.min(me.stack + me.bet, Math.max(...live().filter(p => p.id !== 0).map(p => p.stack + p.bet)));
+  const spr = (eff - me.bet) / Math.max(1, a.pot);
+  const W = whyBreakdown();
+  const opp = W ? W.opp : primaryOpp();
+  const nOpp = live().length - 1;
+  // ① 位置
+  const l1 = `${pos}・${a.ip ? "後から行動できる（有利）" : "先に行動する（不利）"}・${(eff / bb).toFixed(0)}BB${G.street > 0 ? `・SPR ${spr.toFixed(1)}` : ""}${nOpp > 1 ? `・相手${nOpp}人` : ""}`;
+  // ② 相手のレンジ
+  let l2 = "まだ誰も動いていない";
+  if(opp){
+    const rg = oppRanges(0).find(r => r.name === opp.name);
+    const pct = rg ? rg.combos.length / COMBOS.length : 1;
+    const act = G.street > 0 && opp.aggr[G.street] ? "ベット" : opp.id === G.opener ? `${posInfo(opp.id).name}からオープン` : opp.pfRaises ? "3ベット" : opp.pfCalls ? "コール" : "まだ動いていない";
+    l2 = `${esc(opp.name)}が${act} → ${pct >= 0.99 ? "どんな手札もありうる" : `上位約${pctS(pct, 0)}の手札`}${G.street > 0 && opp.aggr[G.street] ? "（ボードに絡んだ手札が中心）" : ""}`;
+  }
+  // ③ 自分の手札 vs レンジ
+  let l3;
+  if(W){
+    const good = W.bw.b4 + W.bw.b3, bad = W.bw.b1 + W.bw.b0;
+    const exB = (W.ex.b0.length ? W.ex.b0 : W.ex.b1).slice(0, 3).join("・"), exG = (W.ex.b4.length ? W.ex.b4 : W.ex.b3).slice(0, 2).join("・");
+    l3 = G.street > 0 && W.ahead != null
+      ? `今リードしているのはレンジの${pctS(W.ahead, 0)}${W.behind > 0.05 ? `、負けている相手（${exB}など）からは${pctS(W.comeback, 0)}で逆転` : ""}`
+      : `${info.name}は ${exG ? `${exG}などには有利` : ""}${exG && exB ? "、" : ""}${exB ? `${exB}などには不利` : ""}（有利${pctS(good, 0)}・不利${pctS(bad, 0)}）`;
+  }else l3 = info.name;
+  // ④ 値段
+  let l4;
+  if(a.toCall > 0 && a.kind !== "open" && a.kind !== "push"){
+    const oppBet = Math.max(0, G.currentBet - me.bet), ratio = oppBet / Math.max(1, a.pot - oppBet);
+    const near = BET_SIZES.reduce((x, y) => Math.abs(y[1] - ratio) < Math.abs(x[1] - ratio) ? y : x, BET_SIZES[0]);
+    l4 = `コール${fmt(a.toCall)}（約${near[0]}ポット）→ 必要勝率 <b>${pctS(a.req, 0)}</b>。勝率は約${pctS(a.eqR, 0)}`;
+  }else if(a.kind === "open"){
+    l4 = a.toCall > 0 ? "誰もレイズしていない → レイズかフォールドの2択（リンプはしない）" : "BBで追加の支払いなし → 無料で見られる";
+  }else if(a.kind === "push"){
+    l4 = `残り${(eff / bb).toFixed(1)}BB → オールインかフォールドの2択`;
+  }else{
+    l4 = `ベットされていない → 勝率約${pctS(a.eq, 0)}で、${a.eq >= 0.6 ? "打って価値を取る" : a.eq >= 0.45 ? "小さく打つかチェック" : "無理せずチェック"}場面`;
+  }
+  // ⑤ 結論（短く）
+  const short = a.kind === "open" ? (a.rec.type === "raise" ? `${info.name}は${pos}のオープン範囲内` : a.rec.type === "check" ? "強くないので無料で見る" : `${info.name}は${pos}のオープン範囲外`)
+    : a.toCall > 0 ? (a.rec.type === "fold" ? `勝率${pctS(a.eqR, 0)} ＜ 必要${pctS(a.need, 0)}` : a.rec.type === "call" ? `勝率${pctS(a.eqR, 0)} ≧ 必要${pctS(a.need, 0)}` : "大きく有利・ブラフにも使える")
+    : (a.rec.type === "raise" ? (a.eq >= 0.52 ? "有利なので価値を取る" : "ドローでセミブラフ") : "中くらい以下の強さなのでポットを大きくしない");
+  const cls = a.rec.type === "fold" ? "f" : a.rec.type === "raise" ? "r" : "c";
+  const html = `<div class="panel pro">
+    <div class="pro-l"><span>位置</span><p>${l1}</p></div>
+    <div class="pro-l"><span>相手</span><p>${l2}</p></div>
+    <div class="pro-l"><span>手札</span><p>${l3}</p></div>
+    <div class="pro-l"><span>値段</span><p>${l4}</p></div>
+    <div class="pro-c ${cls}"><b>${esc(a.rec.label)}</b><span>${short}</span></div>
+  </div>`;
+  proCache = { key, html };
+  return html;
 }
 
 // ---------------------------------------------------------------------
@@ -2249,6 +2414,7 @@ window.Practice = {
   toggleReview(){ ui.review = !ui.review; render(); },
   cheat(tab){ openModal(cheatHTML(tab || "bet")); },
   qAns,
+  toggleDetail(){ ui.detail = !ui.detail; render(); },
   toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
   browser(){ rb.cell = null; if(G && G.players && G.players[0].hole.length){ const p = posInfo(0).name; if(PF_ORDER.includes(p)) rb.hero = p; const o = G.opener >= 0 ? posInfo(G.opener).name : null; if(o) rb.opener = o; }
     openModal(browserHTML()); },
