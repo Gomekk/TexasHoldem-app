@@ -1066,6 +1066,19 @@ function css(){
   .cm-lb b{color:var(--text);font-size:14px}
   .cm-s{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
   .quiz{border-color:#4a3480}
+  .wc{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+  .qx .wc{border-top-color:#2b3744}
+  .wc summary{font-weight:900;font-size:13.5px;cursor:pointer;color:#c7a8ff;margin-bottom:6px}
+  .wc-ol{padding-left:18px;font-size:12.5px;line-height:1.7;display:grid;gap:2px}
+  .wc-ol b{color:var(--text)}
+  .wc-f{background:#0e141a;border-radius:9px;padding:8px 10px;margin:8px 0;font-size:12.5px;line-height:1.8;font-variant-numeric:tabular-nums}
+  .wc-f b.big{font-size:17px;color:#7ff0ff}
+  .wmr{display:grid;grid-template-columns:92px 1fr 40px;gap:8px;align-items:center;font-size:12.5px;margin-bottom:5px}
+  .wmr .n{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wmr .n small{display:block;font-size:10px;color:var(--sub);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wmr b{text-align:right;font-variant-numeric:tabular-nums}
+  .wmb{height:10px;border-radius:5px;background:#3a1820;overflow:hidden}
+  .wmb i{display:block;height:100%;background:linear-gradient(90deg,#1f8f63,#22e4ff)}
   .qx{background:var(--panel2);border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:12.5px;line-height:1.7}
   .qx-h{font-weight:900;font-size:13.5px;margin-bottom:4px;color:#ffb4a8}
   .qx p{margin-bottom:5px}
@@ -1434,7 +1447,8 @@ function explainEq(a, guessBucket){
     out.push(`<div class="qx-bar">${stackBar(W.bw, 10)}</div>
       <p>相手のレンジのうち、<b class="g">${pctS(good, 0)}に有利</b>${exGood ? `（${exGood}など）` : ""}、<b class="o">${pctS(bad, 0)}に不利</b>${exBad ? `（${exBad}など）` : ""}。1人に対する勝率は${pctS(W.eqHU, 0)}です</p>`);
     if(W.ahead != null) out.push(`<p><b>リードと逆転</b>：今リードしているのは相手レンジの${pctS(W.ahead, 0)}で、リードしていればそのまま勝つのは${pctS(W.keep, 0)}。負けている${pctS(W.behind, 0)}からの逆転は${pctS(W.comeback, 0)}。→ ${pctS(W.ahead,0)}×${pctS(W.keep,0)}＋${pctS(W.behind,0)}×${pctS(W.comeback,0)} ≒ ${pctS(W.eqHU, 0)}</p>`);
-    if(W.multi > 1) out.push(`<p><b>人数</b>：相手が${W.multi}人いるので、全員に勝つ必要があります。1人に対して${pctS(W.eqHU, 0)}でも、全員相手だと${pctS(a.eq, 0)}まで下がります${high ? "（人数が増えると勝率は大きく下がるのを忘れがち）" : ""}</p>`);
+    out.push(calcHTML());
+    if(W.multi > 1) out.push(multiHTML());
   }
   // 予想のコツ
   const tips = [];
@@ -1870,6 +1884,77 @@ function rangePanelHTML(){
     <p class="sub" style="margin-top:8px">レンジ同士で戦った時の勝率です（あなたの今の手札1つではなく、このアクションをする時にあり得る手札全体）。${strong ? `強い役の割合は あなた${pctS(strong[0],0)}・${esc(X.opp.name)}${pctS(strong[1],0)}${strong[0] > strong[1] + 0.03 ? "で、ナッツに近い手札はあなたの方が多い（大きく打ちやすい）" : strong[1] > strong[0] + 0.03 ? "で、強い手札は相手の方が多い（大きく打たれたら慎重に）" : ""}。` : "ピンクの枠があなたの今の手札です。"}</p>
   </div>`;
 }
+// 勝率の計算過程（回数つき）と、人数による低下の内訳
+function simCount(hole, board, ranges, iters){
+  const blocked = new Uint8Array(64); hole.concat(board).forEach(c => blocked[c] = 1);
+  const deck = ALL.filter(c => !blocked[c]);
+  const mark = new Int32Array(64);
+  let wins = 0, tieShare = 0, ties = 0;
+  for(let it = 1; it <= iters; it++){
+    const free = c => !blocked[c] && mark[c] !== it;
+    const pick = () => { for(;;){ const c = deck[Math.floor(rnd() * deck.length)]; if(mark[c] !== it){ mark[c] = it; return c; } } };
+    const hands = ranges.map(r => {
+      for(let t = 0; t < 30; t++){
+        const h = r.combos[Math.floor(rnd() * r.combos.length)];
+        if(!free(h[0]) || !free(h[1])) continue;
+        let ok = true;
+        for(let st = 1; st <= G.street && st <= 3 && board.length >= st + 2; st++) if(r.aggr[st] && !improves(h, board.slice(0, st + 2))){ ok = false; break; }
+        if(!ok && t < 29) continue;
+        mark[h[0]] = it; mark[h[1]] = it; return h;
+      }
+      return [pick(), pick()];
+    });
+    const bd = board.slice(); while(bd.length < 5) bd.push(pick());
+    const mine = evaluate(hole.concat(bd));
+    let n = 1, lose = false;
+    for(const h of hands){ const v = evaluate(h.concat(bd)); if(v > mine){ lose = true; break; } if(v === mine) n++; }
+    if(!lose){ if(n === 1) wins++; else { ties++; tieShare += 1 / n; } }
+  }
+  return { iters, wins, ties, tieShare, eq: (wins + tieShare) / iters };
+}
+let multiCache = null;
+function multiBreakdown(){
+  const me = G.players[0];
+  const key = `${G.handNo}|${G.street}|${G.actions}`;
+  if(multiCache && multiCache.key === key) return multiCache.val;
+  const ranges = oppRanges(0);
+  const all = simCount(me.hole, G.board, ranges, 3000);
+  const each = ranges.map(r => Object.assign({ name: r.name, label: r.label }, simCount(me.hole, G.board, [r], 1500)));
+  const product = each.reduce((x, e) => x * e.eq, 1);
+  const val = { all, each, product, left: 5 - G.board.length, deckLeft: 52 - 2 - G.board.length };
+  multiCache = { key, val };
+  return val;
+}
+function calcHTML(){
+  const M = multiBreakdown(), A = M.all;
+  const nOpp = M.each.length;
+  return `<details class="wc" open><summary>勝率の計算のしかた</summary>
+    <ol class="wc-ol">
+      <li>${nOpp}人の相手それぞれに、推定レンジ（${M.each.map(e => `${esc(e.name)}：${esc(e.label)}`).join("・")}）から手札を1組ずつランダムに配る</li>
+      <li>${M.left ? `まだ出ていないボード${M.left}枚を、残りの山からランダムにめくる` : "ボードは5枚とも出ているので、そのまま比べる"}</li>
+      <li>全員の役を比べて、あなたが一番強ければ「勝ち」、同じ強さなら人数で山分け</li>
+      <li>これを<b>${fmt(A.iters)}回</b>くり返して数える</li>
+    </ol>
+    <div class="wc-f">勝ち <b>${fmt(A.wins)}回</b> ＋ 引き分け ${fmt(A.ties)}回の山分け分 <b>${A.tieShare.toFixed(1)}回</b><br>÷ ${fmt(A.iters)}回 ＝ <b class="big">${pctS(A.eq, 1)}</b></div>
+    <p class="th-s">ランダムに数えるシミュレーションなので、表示のたびに1〜2%ぶれます。相手のレンジは、その人のポジションとアクション（オープン・コール・ベットなど）から推定しています</p>
+  </details>`;
+}
+function multiHTML(){
+  const M = multiBreakdown();
+  if(M.each.length < 2) return "";
+  const maxW = 100;
+  const rows = M.each.map(e => `<div class="wmr"><span class="n">${esc(e.name)}<small>${esc(e.label)}</small></span>
+      <div class="wmb"><i style="width:${(e.eq * maxW).toFixed(1)}%"></i></div><b>${pctS(e.eq, 0)}</b></div>`).join("");
+  const formula = M.each.map(e => pctS(e.eq, 0)).join(" × ");
+  const diff = M.all.eq - M.product;
+  return `<details class="wc" open><summary>相手が${M.each.length}人だと、なぜ下がる？</summary>
+    <p class="th-s" style="margin:4px 0 8px">ポットを取るには<b style="color:var(--text)">全員より強い</b>必要があります。まず相手1人ずつに対する勝率：</p>
+    ${rows}
+    <div class="wc-f">全員に勝つ確率 ≒ 1人ずつの勝率の掛け算<br>${formula} ＝ <b>${pctS(M.product, 0)}</b><br>実際のシミュレーション（全員同時）＝ <b class="big">${pctS(M.all.eq, 0)}</b></div>
+    <p class="th-s">掛け算なので、人数が増えるほど急に下がります（1人あたり60%でも、2人なら36%、3人なら22%）。
+    ${Math.abs(diff) >= 0.02 ? `掛け算と実際が${diff > 0 ? "実際の方が高い" : "実際の方が低い"}のは、${diff > 0 ? "相手同士も潰し合う（1人が強い時はもう1人が弱くなりやすい）ことや、相手同士が同じカードを取り合うため" : "相手のレンジ同士が似ていて、強い手札が重なりやすいため"}。` : "今回は掛け算とほぼ同じになっています。"}</p>
+  </details>`;
+}
 function stackBar(bw, h){
   return `<div class="wb" style="height:${h}px">${BUCKETS.map(b => bw[b.k] > 0.004 ? `<i class="${b.k}" style="width:${(bw[b.k] * 100).toFixed(1)}%"></i>` : "").join("")}</div>`;
 }
@@ -1888,14 +1973,16 @@ function whyPanelHTML(){
         <span class="arw">→ 逆転</span><b class="o">${pctS(W.comeback,0)}</b></div>
       <div class="wab-f">勝率 ≒ ${pctS(W.ahead,0)}×${pctS(W.keep,0)} ＋ ${pctS(W.behind,0)}×${pctS(W.comeback,0)}${W.tie > 0.01 ? ` ＋ 引分の半分` : ""} ＝ <b>${pctS(W.eqHU,0)}</b></div>
     </div>` : "";
-  const all = liveEquity().eq;
-  const multi = W.multi > 1 ? `<p class="wm">相手が${W.multi}人いるので、全員に勝たないとポットを取れません。${esc(W.opp.name)}1人に対しては${pctS(W.eqHU,0)}でも、残っている全員が相手だと <b>${pctS(all,0)}</b> まで下がります${a.kind === "defend" ? "（ディフェンスの判断は、オープンした人との勝率に、後ろの人の分の余裕を足した必要勝率で比べています）" : ""}</p>` : "";
+  const multi = W.multi > 1 && a.kind === "defend" ? `<p class="wm">ディフェンスの判断は、オープンした人1人との勝率に、後ろの人の分の余裕を足した必要勝率で比べています</p>` : "";
   return `<div class="panel why">
     <div class="ptitle">なぜこの勝率？<span class="sp"></span><small>${esc(W.opp.name)}の${esc(W.label)}</small></div>
     <p class="sub" style="margin-bottom:6px">相手のレンジ（考えられる手札${W.combos}通り）を、あなたの手札との相性で色分け</p>
     ${stackBar(W.bw, 16)}
     <div class="wls">${legend}</div>
-    ${ab}${multi}
+    ${ab}
+    ${calcHTML()}
+    ${multiHTML()}
+    ${multi}
   </div>`;
 }
 function feltWhyHTML(){
