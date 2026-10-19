@@ -214,6 +214,10 @@ body.spectating .panel{border-color:#3b2a5c}
 .logo .r{color:var(--h)}.logo .bl{color:#6aa6ff}.logo .g{color:#3ddc97}
 .gate h1{font-size:30px;font-weight:900;letter-spacing:.12em}
 .gate p{color:var(--sub);font-size:14px;line-height:1.6}
+.gate-rg{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.gate-rg .btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px}
+.gate-rg .btn b{font-size:14px}
+.gate-rg .btn small{font-size:11px;color:var(--sub);font-weight:600}
 
 /* modal */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50}
@@ -438,6 +442,10 @@ function gateHTML(){
       <button class="btn" style="flex:0 0 80px" onclick="joinCode($('#codeIn').value)">参加</button></div>
     <button class="btn ghost" onclick="openHost()">ホストとして今日の部屋を開く</button>
     <button class="btn" onclick="Practice.open('gate')">1人で練習（CPU対戦）</button>
+    <div class="gate-rg">
+      <button class="btn" onclick="Practice.browser('open')"><b>オープンレンジ</b><small>最初に入る時</small></button>
+      <button class="btn" onclick="Practice.browser('def')"><b>レイズを受けた時</b><small>コール・3ベット</small></button>
+    </div>
   </div>`;
 }
 async function joinCode(code){
@@ -1112,6 +1120,7 @@ function openMenu(){
     <div style="display:grid;gap:10px">
       <button class="btn big" onclick="showQR()">参加用QRを表示（途中参加の人へ）</button>
       <button class="btn big" onclick="closeModal();Practice.open('main')">1人で練習（CPU対戦）</button>
+      <button class="btn big" onclick="Practice.browser('open')">レンジ表</button>
       <button class="btn big" onclick="closeModal();act('poker_sitout',{p_on:${!S.sitting_out}})">${S.sitting_out ? "観戦をやめる" : "観戦モードにする（しばらく抜ける）"}</button>
       ${S.owner ? `<button class="btn big" onclick="openAdmin()">プレイヤー管理（オーナー）</button>
       <button class="btn big" onclick="closeModal();switchPlayer()">代理で操作するプレイヤーを選ぶ</button>` : ""}

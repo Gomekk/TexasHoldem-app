@@ -1148,6 +1148,9 @@ function css(){
   .pro-l:first-child{border-top:none;padding-top:0}
   .pro-l span{font-size:11px;font-weight:900;color:#b99bff;padding-top:2px}
   .pro-l b{color:#7ff0ff}
+  .rb-lg{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:11px;color:var(--sub)}
+  .rb-lg span{display:flex;align-items:center;gap:5px}
+  .rb-lg i.hc{width:14px;height:14px;min-height:0;padding:0;border-radius:3px;font-size:0;display:inline-block;aspect-ratio:auto}
   .pro-x{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
   .pro-x small{display:block;font-size:10px;opacity:.8}
   .pro-c{display:flex;align-items:baseline;gap:10px;margin-top:8px;padding:9px 12px;border-radius:12px}
@@ -2366,37 +2369,51 @@ function chartHTML(){
 // ---------------------------------------------------------------------
 //  レンジ表ブラウザ（好きなポジションの組み合わせで見る）
 // ---------------------------------------------------------------------
-let rb = { hero:"BB", opener:"BTN", size:2.5, cell:null };
+let rb = { mode:"open", hero:"CO", dhero:"BB", opener:"BTN", size:2.5, cell:null };
+try{ Object.assign(rb, JSON.parse(localStorage.getItem("poker.rb") || "{}"), { cell:null }); }catch(e){}
+const saveRb = () => { try{ localStorage.setItem("poker.rb", JSON.stringify({ mode:rb.mode, hero:rb.hero, dhero:rb.dhero, opener:rb.opener, size:rb.size })); }catch(e){} };
 function browserHTML(){
-  const heroI = PF_ORDER.indexOf(rb.hero);
-  const openers = rb.hero === "BB" ? PF_ORDER.filter(p => p !== "BB") : PF_ORDER.slice(0, heroI);
-  if(rb.opener !== "none" && !openers.includes(rb.opener)) rb.opener = "none";
-  const seg = (vals, cur, fn) => `<div class="pr-seg wrap">${vals.map(([v, l]) => `<button class="${cur === v ? "on" : ""}" onclick="Practice.rb('${fn}','${v}')">${l}</button>`).join("")}</div>`;
-  let body;
+  const seg = (vals, cur, fn) => `<div class="pr-seg wrap">${vals.map(([v, l]) => `<button class="${String(cur) === String(v) ? "on" : ""}" onclick="Practice.rb('${fn}','${v}')">${l}</button>`).join("")}</div>`;
   const anteBB = cfg.ante === "none" ? 0 : cfg.ante === "bb" ? 1 : 9 / 8;
-  if(rb.opener === "none"){
-    const tier = POS_TIER[rb.hero];
-    let w = 0, t = 0; for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){ t += clsWeight(r, c); if(TIERS[CHART[r][c]] <= tier) w += clsWeight(r, c); }
-    body = `<p class="sub" style="margin:8px 0">${rb.hero} のオープンレンジ（全体の約${pctS(w / t, 0)}）。写真のチャートどおり</p>${openGrid(tier, null)}`;
+  let ctrl, body;
+  if(rb.mode === "open"){
+    const heroes = [["all","全体"]].concat(PF_ORDER.filter(p => p !== "BB").map(p => [p, p]));
+    if(!heroes.some(h => h[0] === rb.hero)) rb.hero = "all";
+    ctrl = `<div class="pr-lbl">あなたのポジション</div>${seg(heroes, rb.hero, "hero")}`;
+    if(rb.hero === "all"){
+      body = `<p class="sub" style="margin:8px 0">誰もレイズしていない時に最初にレイズで入る範囲。色は「どのポジションから入れるか」。後ろのポジションほど、それより前の色も全部含む</p>
+        ${openGrid(4, null)}
+        <div class="rb-lg">${TIER_LABEL.slice(0, 5).map((l, i) => `<span><i class="hc ${["N","Y","G","B","W"][i]}"></i>${l}</span>`).join("")}<span><i class="hc F"></i>フォールド</span></div>`;
+    }else{
+      const tier = POS_TIER[rb.hero];
+      let w = 0, t = 0; for(let r = 0; r < 13; r++) for(let c = 0; c < 13; c++){ t += clsWeight(r, c); if(TIERS[CHART[r][c]] <= tier) w += clsWeight(r, c); }
+      body = `<p class="sub" style="margin:8px 0">${rb.hero} から最初にレイズで入る範囲（全体の約${pctS(w / t, 0)}）。明るいマスはレイズ、暗いマスはフォールド。リンプ（コールで参加）はしない</p>${openGrid(tier, null)}`;
+    }
   }else{
-    const posted = rb.hero === "BB" ? 1 : rb.hero === "SB" ? 0.5 : 0;
+    const heroes = PF_ORDER.filter(p => p !== "UTG");
+    if(!heroes.includes(rb.dhero)) rb.dhero = "BB";
+    const heroI = PF_ORDER.indexOf(rb.dhero);
+    const openers = rb.dhero === "BB" ? PF_ORDER.filter(p => p !== "BB") : PF_ORDER.slice(0, heroI);
+    if(!openers.includes(rb.opener)) rb.opener = openers[openers.length - 1];
+    ctrl = `<div class="pr-lbl">あなたのポジション</div>${seg(heroes.map(p => [p, p]), rb.dhero, "dhero")}
+      <div class="pr-lbl">先にレイズした人</div>${seg(openers.map(p => [p, p]), rb.opener, "opener")}
+      <div class="pr-lbl">レイズの額</div>${seg([["2.2","2.2BB"],["2.5","2.5BB"],["3","3BB"]], rb.size, "size")}`;
+    const posted = rb.dhero === "BB" ? 1 : rb.dhero === "SB" ? 0.5 : 0;
     const opPosted = rb.opener === "SB" ? 0.5 : 0;
     const potBB = +(1.5 + anteBB + rb.size - opPosted).toFixed(2);
-    const pfI = PF_ORDER.indexOf(rb.hero);
-    const behind = rb.hero === "BB" ? 0 : rb.hero === "SB" ? 1 : PF_ORDER.length - 1 - pfI;
-    const dc = defenseChart({ hero: rb.hero, opener: rb.opener, openBB: rb.size, postedBB: posted, potBB, behind, callers: 0 });
+    const behind = rb.dhero === "BB" ? 0 : rb.dhero === "SB" ? 1 : PF_ORDER.length - 1 - heroI;
+    const dc = defenseChart({ hero: rb.dhero, opener: rb.opener, openBB: rb.size, postedBB: posted, potBB, behind, callers: 0 });
     const sel = rb.cell ? dc.grid[rb.cell[0]][rb.cell[1]] : null;
-    body = `<p class="sub" style="margin:8px 0">${rb.hero} vs ${rb.opener} の${rb.size}BBオープン（${dc.ip ? "インポジション" : "アウトオブポジション"}）。アンティ${cfg.ante === "none" ? "なし" : cfg.ante === "bb" ? "BB" : "全員"}・必要勝率 ${pctS(dc.need,0)}</p>
+    body = `<p class="sub" style="margin:8px 0">${rb.dhero} で ${rb.opener} の${rb.size}BBレイズを受けた時のレンジ（${dc.ip ? "後から行動できる" : "先に行動する"}・必要勝率 ${pctS(dc.need,0)}・アンティ${cfg.ante === "none" ? "なし" : cfg.ante === "bb" ? "BB" : "全員"}）</p>
       ${gridHTML((r, c) => ({ cls: DEF_CLS[dc.grid[r][c].act] }), rb.cell, "Practice.rbCell")}
       ${defLegend(dc)}
-      ${sel ? `<div class="dme"><b>${sel.name}</b>：推定勝率 ${pctS(sel.eq,0)} × 実現率 ${sel.R.toFixed(2)} = <b>${pctS(sel.eqR,0)}</b>（必要 ${pctS(dc.need,0)}）→ <b class="${DEF_CLS[sel.act]}t">${DEF_NAME[sel.act]}</b></div>` : `<p class="sub" style="margin-top:6px">マスをタップすると、その手札の勝率と実現率が出ます</p>`}`;
+      ${sel ? `<div class="dme"><b>${sel.name}</b>：推定勝率 ${pctS(sel.eq,0)} × 実現率 ${sel.R.toFixed(2)} = <b>${pctS(sel.eqR,0)}</b>（必要 ${pctS(dc.need,0)}）→ <b class="${DEF_CLS[sel.act]}t">${DEF_NAME[sel.act]}</b></div>` : `<p class="sub" style="margin-top:6px">マスをタップすると、その手札の理由が出ます</p>`}
+      <p class="sub" style="margin-top:8px">相手のオープンレンジへの勝率・位置・必要勝率（ブラインドとアンティ込み）から計算した目安です</p>`;
   }
   return `<h2>レンジ表<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
-    <div class="pr-lbl" style="margin-top:0">あなたのポジション</div>${seg(PF_ORDER.map(p => [p, p]), rb.hero, "hero")}
-    <div class="pr-lbl">先にオープンした人</div>${seg([["none","なし（自分がオープン）"]].concat(openers.map(p => [p, p])), rb.opener, "opener")}
-    ${rb.opener !== "none" ? `<div class="pr-lbl">オープンの額</div>${seg([["2.2","2.2BB"],["2.5","2.5BB"],["3","3BB"]], String(rb.size), "size")}` : ""}
-    ${body}
-    <p class="sub" style="margin-top:10px">ディフェンス表は、相手のオープンレンジに対する勝率・実現率・必要勝率（ブラインドとアンティのデッドマネー込み）から計算した目安です（ソルバーの解ではありません）</p>`;
+    ${seg([["open","最初に入る（オープン）"],["def","レイズを受けた時"]], rb.mode, "mode")}
+    ${ctrl}
+    ${body}`;
 }
 function resultHTML(){
   const me = G.players[0];
@@ -2472,9 +2489,11 @@ window.Practice = {
   qAns,
   toggleDetail(){ ui.detail = !ui.detail; render(); },
   toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
-  browser(){ rb.cell = null; if(G && G.players && G.players[0].hole.length){ const p = posInfo(0).name; if(PF_ORDER.includes(p)) rb.hero = p; const o = G.opener >= 0 ? posInfo(G.opener).name : null; if(o) rb.opener = o; }
+  browser(mode){ css(); rb.cell = null; if(mode) rb.mode = mode;
+    if(G && G.players && G.players[0].hole.length && G.phase === "play"){ const p = posInfo(0).name; const o = G.opener > 0 ? posInfo(G.opener).name : null;
+      if(o){ rb.mode = "def"; rb.dhero = p; rb.opener = o; } else if(PF_ORDER.includes(p) && p !== "BB"){ rb.mode = "open"; rb.hero = p; } }
     openModal(browserHTML()); },
-  rb(k, v){ rb[k] = k === "size" ? Number(v) : v; rb.cell = null; openModal(browserHTML()); },
+  rb(k, v){ rb[k] = k === "size" ? Number(v) : v; rb.cell = null; saveRb(); openModal(browserHTML()); },
   rbCell(r, c){ rb.cell = [r, c]; openModal(browserHTML()); },
   // テスト用
   _sim(n){ return simulate(n); },
