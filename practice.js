@@ -1148,6 +1148,20 @@ function css(){
   .pro-l:first-child{border-top:none;padding-top:0}
   .pro-l span{font-size:11px;font-weight:900;color:#b99bff;padding-top:2px}
   .pro-l b{color:#7ff0ff}
+  .rb-pr{display:block;font-size:9px;font-weight:600;opacity:.75}
+  .pr-lbl small{font-weight:600;color:var(--sub);font-size:10px}
+  .hc.pk.st{background:#7b4ae0;color:#fff}.hc.pk.tp{background:#2f9e56;color:#fff}.hc.pk.wp{background:#c9a227;color:#221a00}
+  .hc.pk.dr{background:#2c7fb8;color:#fff}.hc.pk.ai{background:#2a333d;color:#8a95a1}.hc.pk.nb{background:#14191f;color:#3a434c}
+  .hc.pk.part{position:relative}.hc.pk.part::after{content:"";position:absolute;right:1px;top:1px;width:3px;height:3px;border-radius:50%;background:#fff}
+  .pcbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel2);margin-top:6px}
+  .pcbar i.pk.st{background:#7b4ae0}.pcbar i.pk.tp{background:#2f9e56}.pcbar i.pk.wp{background:#c9a227}.pcbar i.pk.dr{background:#2c7fb8}.pcbar i.pk.ai{background:#3a434c}
+  .rb-comp{margin-bottom:8px}
+  .rb-bd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .rb-bdb{display:flex;gap:6px;flex-wrap:wrap}
+  .pc-t{font-weight:900;white-space:nowrap}.pc-t.st{color:#b392ff}.pc-t.tp{color:#3ddc97}.pc-t.wp{color:#f0c94a}.pc-t.dr{color:#5fb6ff}.pc-t.ai{color:#8a95a1}
+  .rb-guide{display:grid;gap:6px;margin-top:10px;font-size:12px;line-height:1.5}
+  .rb-guide div{display:grid;grid-template-columns:auto 1fr;gap:8px}
+  .rb-guide span{color:var(--sub)}
   .rb-lg{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:11px;color:var(--sub)}
   .rb-lg span{display:flex;align-items:center;gap:5px}
   .rb-lg i.hc{width:14px;height:14px;min-height:0;padding:0;border-radius:3px;font-size:0;display:inline-block;aspect-ratio:auto}
@@ -2371,11 +2385,18 @@ function chartHTML(){
 // ---------------------------------------------------------------------
 let rb = { mode:"open", hero:"CO", dhero:"BB", opener:"BTN", size:2.5, cell:null };
 try{ Object.assign(rb, JSON.parse(localStorage.getItem("poker.rb") || "{}"), { cell:null }); }catch(e){}
-const saveRb = () => { try{ localStorage.setItem("poker.rb", JSON.stringify({ mode:rb.mode, hero:rb.hero, dhero:rb.dhero, opener:rb.opener, size:rb.size })); }catch(e){} };
+const saveRb = () => { try{ localStorage.setItem("poker.rb", JSON.stringify({ mode:rb.mode, hero:rb.hero, dhero:rb.dhero, opener:rb.opener, size:rb.size, prange:rb.prange })); }catch(e){} };
+// プリフロップのレイズ額を「レイズ前のポット（ブラインド＋アンティ）の何倍か」で
+function potX(bbAmt){
+  const anteBB = cfg.ante === "none" ? 0 : cfg.ante === "bb" ? 1 : 9 / 8;
+  const x = bbAmt / (1.5 + anteBB);
+  return `約${x.toFixed(1)}倍`;
+}
 function browserHTML(){
   const seg = (vals, cur, fn) => `<div class="pr-seg wrap">${vals.map(([v, l]) => `<button class="${String(cur) === String(v) ? "on" : ""}" onclick="Practice.rb('${fn}','${v}')">${l}</button>`).join("")}</div>`;
   const anteBB = cfg.ante === "none" ? 0 : cfg.ante === "bb" ? 1 : 9 / 8;
   let ctrl, body;
+  if(rb.mode === "post") return postBrowserHTML(seg);
   if(rb.mode === "open"){
     const heroes = [["all","全体"]].concat(PF_ORDER.filter(p => p !== "BB").map(p => [p, p]));
     if(!heroes.some(h => h[0] === rb.hero)) rb.hero = "all";
@@ -2397,23 +2418,84 @@ function browserHTML(){
     if(!openers.includes(rb.opener)) rb.opener = openers[openers.length - 1];
     ctrl = `<div class="pr-lbl">あなたのポジション</div>${seg(heroes.map(p => [p, p]), rb.dhero, "dhero")}
       <div class="pr-lbl">先にレイズした人</div>${seg(openers.map(p => [p, p]), rb.opener, "opener")}
-      <div class="pr-lbl">レイズの額</div>${seg([["2.2","2.2BB"],["2.5","2.5BB"],["3","3BB"]], rb.size, "size")}`;
+      <div class="pr-lbl">レイズの額<small>（カッコ内はレイズ前のポットに対する大きさ）</small></div>${seg([2.2, 2.5, 3].map(v => [String(v), `${v}BB<small class="rb-pr">ポットの${potX(v)}</small>`]), rb.size, "size")}`;
     const posted = rb.dhero === "BB" ? 1 : rb.dhero === "SB" ? 0.5 : 0;
     const opPosted = rb.opener === "SB" ? 0.5 : 0;
     const potBB = +(1.5 + anteBB + rb.size - opPosted).toFixed(2);
     const behind = rb.dhero === "BB" ? 0 : rb.dhero === "SB" ? 1 : PF_ORDER.length - 1 - heroI;
     const dc = defenseChart({ hero: rb.dhero, opener: rb.opener, openBB: rb.size, postedBB: posted, potBB, behind, callers: 0 });
     const sel = rb.cell ? dc.grid[rb.cell[0]][rb.cell[1]] : null;
-    body = `<p class="sub" style="margin:8px 0">${rb.dhero} で ${rb.opener} の${rb.size}BBレイズを受けた時のレンジ（${dc.ip ? "後から行動できる" : "先に行動する"}・必要勝率 ${pctS(dc.need,0)}・アンティ${cfg.ante === "none" ? "なし" : cfg.ante === "bb" ? "BB" : "全員"}）</p>
+    body = `<p class="sub" style="margin:8px 0">${rb.dhero} で ${rb.opener} の${rb.size}BB（ポットの${potX(rb.size)}）レイズを受けた時のレンジ（${dc.ip ? "後から行動できる" : "先に行動する"}・必要勝率 ${pctS(dc.need,0)}・アンティ${cfg.ante === "none" ? "なし" : cfg.ante === "bb" ? "BB" : "全員"}）</p>
       ${gridHTML((r, c) => ({ cls: DEF_CLS[dc.grid[r][c].act] }), rb.cell, "Practice.rbCell")}
       ${defLegend(dc)}
       ${sel ? `<div class="dme"><b>${sel.name}</b>：推定勝率 ${pctS(sel.eq,0)} × 実現率 ${sel.R.toFixed(2)} = <b>${pctS(sel.eqR,0)}</b>（必要 ${pctS(dc.need,0)}）→ <b class="${DEF_CLS[sel.act]}t">${DEF_NAME[sel.act]}</b></div>` : `<p class="sub" style="margin-top:6px">マスをタップすると、その手札の理由が出ます</p>`}
       <p class="sub" style="margin-top:8px">相手のオープンレンジへの勝率・位置・必要勝率（ブラインドとアンティ込み）から計算した目安です</p>`;
   }
   return `<h2>レンジ表<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
-    ${seg([["open","最初に入る（オープン）"],["def","レイズを受けた時"]], rb.mode, "mode")}
+    ${seg([["open","オープン"],["def","レイズを受けた時"],["post","フロップ以降"]], rb.mode, "mode")}
     ${ctrl}
     ${body}`;
+}
+// ---------------------------------------------------------------------
+//  フロップ以降：ボードごとの手札の強さ（プロの5分類）
+// ---------------------------------------------------------------------
+const PC = { st:{ n:"強い役", d:"ツーペア以上（手札で作った役）", a:"バリューで大きめに打つ・レイズする。遅くしすぎない" },
+  tp:{ n:"トップペア・オーバーペア", d:"ボードの一番上とペア、またはそれより大きいポケットペア", a:"1〜2回は価値を取る。大きく打ち返されたら慎重に（ポットを膨らませすぎない）" },
+  wp:{ n:"弱いペア", d:"2番目以下のペア・ボードより小さいポケットペア", a:"チェックで安く見る。小さいベットにはコール、大きいベットには降りることも多い" },
+  dr:{ n:"ドロー", d:"フラッシュドロー・ストレートドロー", a:"セミブラフで打つか、値段が合えばコール（アウツ×2・×4で判断）" },
+  ai:{ n:"空振り", d:"ペアもドローもない", a:"基本は諦める。ブロッカーがある時や相手が降りやすいボードでだけブラフ" } };
+const PC_ORDER = ["st","tp","wp","dr","ai"];
+const PC_RANK = { st:4, tp:3, wp:2, dr:1, ai:0 };
+function classCombos(r, c){
+  const ra = 14 - r, rb2 = 14 - c, out = [];
+  if(r === c){ for(let s1 = 0; s1 < 4; s1++) for(let s2 = s1 + 1; s2 < 4; s2++) out.push([(ra << 2) | s1, (ra << 2) | s2]); }
+  else if(r < c){ for(let s1 = 0; s1 < 4; s1++) out.push([(ra << 2) | s1, (rb2 << 2) | s1]); }
+  else{ for(let s1 = 0; s1 < 4; s1++) for(let s2 = 0; s2 < 4; s2++) if(s1 !== s2) out.push([(rb2 << 2) | s1, (ra << 2) | s2]); }
+  return out;
+}
+function randBoard(n){ const d = shuffle(ALL.slice()); return d.slice(0, n); }
+function postBrowserHTML(seg){
+  if(!rb.board || rb.board.length < 3) rb.board = randBoard(3);
+  const board = rb.board, used = new Set(board);
+  const rpos = rb.prange || "BTN";
+  const inRange = rpos === "all" ? null : new Set(rangeChart(POS_TIER[rpos]).map(h => h[0] * 64 + h[1]));
+  const inR = h => !inRange || inRange.has(h[0] * 64 + h[1]) || inRange.has(h[1] * 64 + h[0]);
+  const tot = { st:0, tp:0, wp:0, dr:0, ai:0 }; let n = 0;
+  const cells = [];
+  for(let r = 0; r < 13; r++){ cells.push([]); for(let c = 0; c < 13; c++){
+    const cnt = { st:0, tp:0, wp:0, dr:0, ai:0 }; let k = 0, inr = false;
+    classCombos(r, c).forEach(h => { if(used.has(h[0]) || used.has(h[1])) return; const p = postCat(h, board); cnt[p]++; k++;
+      if(inR(h)){ inr = true; tot[p]++; n++; } });
+    let main = "ai", best = "ai";
+    PC_ORDER.forEach(p => { if(cnt[p] > cnt[main] || (cnt[p] === cnt[main] && PC_RANK[p] > PC_RANK[main])) main = p; if(cnt[p] && PC_RANK[p] > PC_RANK[best]) best = p; });
+    cells[r].push({ cnt, k, main, part: best !== main, inr });
+  }}
+  const tx = boardTexture(board);
+  const sel = rb.cell ? cells[rb.cell[0]][rb.cell[1]] : null;
+  let detail = `<p class="sub" style="margin-top:6px">マスをタップすると、その手札の扱い方が出ます。点のあるマスは、マークによってはもっと強くなる手札（例：同じマークならフラッシュドロー）</p>`;
+  if(sel){
+    const name = clsName(rb.cell[0], rb.cell[1]);
+    const parts = PC_ORDER.filter(p => sel.cnt[p]).map(p => `${PC[p].n} ${sel.cnt[p]}通り`).join("・");
+    const p = PC[sel.main];
+    detail = `<div class="dme"><b>${name}</b>：${sel.k ? parts : "ボードとカードが重なっていて持てない"}<br>
+      <b class="pc-t ${sel.main}">${p.n}</b>　${p.a}${sel.part ? `<br><span class="sub">同じマークの組み合わせは「${PC[PC_ORDER.find(q => sel.cnt[q] && PC_RANK[q] > PC_RANK[sel.main])].n}」になる</span>` : ""}</div>`;
+  }
+  const bar = PC_ORDER.map(p => n ? `<i class="pk ${p}" style="width:${(tot[p] / n * 100).toFixed(1)}%"></i>` : "").join("");
+  const posOpts = [["all","全部の手札"]].concat(["UTG","LJ","CO","BTN","SB"].map(p => [p, `${p}のオープン`]));
+  return `<h2>レンジ表<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
+    ${seg([["open","オープン"],["def","レイズを受けた時"],["post","フロップ以降"]], "post", "mode")}
+    <div class="pr-lbl">ボード</div>
+    <div class="rb-bd"><div class="cards">${board.map(c => card(cs(c))).join("")}</div>
+      <div class="rb-bdb"><button class="btn sm" onclick="Practice.rbBoard(3)">新しいフロップ</button>
+      ${board.length < 5 ? `<button class="btn sm" onclick="Practice.rbBoard(${board.length + 1})">${board.length === 3 ? "ターン" : "リバー"}をめくる</button>` : ""}</div></div>
+    ${tx ? `<p class="sub">${tx.wetName}・${tx.tags.join("・")}</p>` : ""}
+    <div class="pr-lbl">誰のレンジで見る？</div>${seg(posOpts, rpos, "prange")}
+    <div class="rb-comp"><div class="pcbar">${bar}</div>
+      <div class="rb-lg">${PC_ORDER.map(p => `<span><i class="hc pk ${p}"></i>${PC[p].n} ${n ? pctS(tot[p] / n, 0) : "—"}</span>`).join("")}</div></div>
+    ${gridHTML((r, c) => { const x = cells[r][c]; return { cls: `pk ${x.k ? x.main : "nb"} ${x.part ? "part" : ""} ${x.inr || !inRange ? "" : "dim"}` }; }, rb.cell, "Practice.rbCell")}
+    ${detail}
+    <div class="rb-guide">${PC_ORDER.map(p => `<div><b class="pc-t ${p}">${PC[p].n}</b><span>${PC[p].d}。${PC[p].a}</span></div>`).join("")}</div>
+    <p class="sub" style="margin-top:8px">プロはフロップ以降、手札をこの5つに分けて考えます。同じ手札でもボードが変わると分類が変わるので、「新しいフロップ」で色々なボードを見てみてください。暗いマスは選んだレンジに入っていない手札</p>`;
 }
 function resultHTML(){
   const me = G.players[0];
@@ -2441,7 +2523,7 @@ function barHTML(myTurn){
     const toCallNow = G.currentBet - me.bet;
     const potRaise = G.currentBet + (pot + toCallNow);   // ポットサイズレイズ
     const pre = G.street === 0 && G.currentBet <= G.bb
-      ? [["2.5BB", G.bb * 2.5], ["3BB", G.bb * 3], ["4BB", G.bb * 4]]
+      ? [2.5, 3, 4].map(v => [`${v}BB<small class="rb-pr">ポット${(G.bb * v / Math.max(1, potTotal())).toFixed(1)}倍</small>`, G.bb * v])
       : G.currentBet > 0 ? [["2.5倍", G.currentBet * 2.5], ["3倍", G.currentBet * 3], ["ポット", potRaise]]
       : [["1/3", pot / 3], ["1/2", pot / 2], ["2/3", pot * 2 / 3], ["ポット", pot]];
     inner = `<div class="pr-size">
@@ -2491,9 +2573,11 @@ window.Practice = {
   toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
   browser(mode){ css(); rb.cell = null; if(mode) rb.mode = mode;
     if(G && G.players && G.players[0].hole.length && G.phase === "play"){ const p = posInfo(0).name; const o = G.opener > 0 ? posInfo(G.opener).name : null;
-      if(o){ rb.mode = "def"; rb.dhero = p; rb.opener = o; } else if(PF_ORDER.includes(p) && p !== "BB"){ rb.mode = "open"; rb.hero = p; } }
+      if(G.board.length >= 3){ rb.mode = "post"; rb.board = G.board.slice(); }
+      else if(o){ rb.mode = "def"; rb.dhero = p; rb.opener = o; } else if(PF_ORDER.includes(p) && p !== "BB"){ rb.mode = "open"; rb.hero = p; } }
     openModal(browserHTML()); },
   rb(k, v){ rb[k] = k === "size" ? Number(v) : v; rb.cell = null; saveRb(); openModal(browserHTML()); },
+  rbBoard(n){ css(); if(n === 3 || !rb.board) rb.board = randBoard(3); else { const used = new Set(rb.board); const d = shuffle(ALL.filter(c => !used.has(c))); rb.board = rb.board.concat(d[0]); } rb.cell = null; openModal(browserHTML()); },
   rbCell(r, c){ rb.cell = [r, c]; openModal(browserHTML()); },
   // テスト用
   _sim(n){ return simulate(n); },
