@@ -1141,6 +1141,30 @@ function css(){
   .cm-bar i{display:block;height:100%;background:linear-gradient(90deg,#1f8f63,#22e4ff)}
   .cm-lb{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-top:3px}
   .cm-lb b{color:var(--text);font-size:14px}
+  .og{display:grid;gap:14px}
+  .og-s{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px}
+  .og-s>div{min-width:0}
+  .og .cards{flex-wrap:wrap;row-gap:4px}
+  .og-c>.cards,.og-o>.cards{flex:1 1 auto;min-width:0}
+  .og-st{width:26px;height:26px;border-radius:50%;background:#2a1a4d;color:#c7a8ff;font-weight:900;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .og h4{font-size:14px;font-weight:900;margin:3px 0 6px}
+  .og p{font-size:12.5px;line-height:1.65;color:var(--sub);margin:4px 0}
+  .og p b{color:#fff}
+  .og-ex{background:var(--panel2);border-radius:12px;padding:10px;margin:8px 0}
+  .og-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .og-h b{font-size:13px}
+  .og-n{background:#0f3a28;color:#3ddc97;font-weight:900;border-radius:999px;padding:2px 10px;font-size:13px}
+  .og-c,.og-o{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0}
+  .og .lb{font-size:10px;color:var(--sub);font-weight:700;min-width:30px}
+  .og-o .cards .card{transform:scale(.85);margin:-2px -3px}
+  .og-rule{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  .og-rule div{background:var(--panel2);border-radius:10px;padding:8px;text-align:center}
+  .og-rule b{display:block;font-size:22px;color:#7ff0ff}
+  .og-rule span{font-size:11px;color:var(--sub);line-height:1.4}
+  .og-ul{margin:4px 0 0 18px;font-size:12px;line-height:1.7;color:var(--sub)}
+  .og-calc{background:var(--panel2);border-radius:12px;padding:8px 12px}
+  .og-calc .ng{color:#ff8a99}
+  .pro-a{color:#b99bff;font-size:11px;font-weight:700;text-decoration:underline;cursor:pointer;white-space:nowrap}
   .cm-s{font-size:12px;color:var(--sub);line-height:1.6;margin-top:10px}
   .quiz{border-color:#4a3480}
   .pro{padding:10px 12px}
@@ -1479,8 +1503,65 @@ function eqBar(eq, la, lb){
   return `<div class="cm-bar"><i style="width:${(eq * 100).toFixed(1)}%"></i></div>
     <div class="cm-lb"><span><b>${pctS(eq, 0)}</b> ${la}</span><span>${lb} <b>${pctS(1 - eq, 0)}</b></span></div>`;
 }
+// アウツの考え方（図解）
+function outsGuideHTML(){
+  const C = s => card(s, "sm");
+  const row = (cards) => `<div class="cards">${cards.split(" ").map(C).join("")}</div>`;
+  const ex = (t, hand, board, outs, n, how) => `<div class="og-ex">
+      <div class="og-h"><b>${t}</b><span class="og-n">${n}枚</span></div>
+      <div class="og-c"><span class="lb">手札</span>${row(hand)}<span class="lb">ボード</span>${row(board)}</div>
+      <div class="og-o"><span class="lb">アウツ</span>${row(outs)}</div>
+      <p>${how}</p></div>`;
+  const tb = [4, 8, 9, 12, 15].map(o => `<tr><td><b>${o}枚</b></td><td>約${o * 2}%<small>（正確には${pctS(o / 46, 0)}）</small></td><td class="hl">約${o * 4 - Math.max(0, o - 8)}%<small>（正確には${pctS(1 - ((47 - o) / 47) * ((46 - o) / 46), 0)}）</small></td></tr>`).join("");
+  return `<div class="og">
+    <div class="og-s"><div class="og-st">1</div><div>
+      <h4>アウツ＝「出たら勝てるカード」の枚数</h4>
+      <p>今は負けているけれど、次にこのカードが出れば逆転できる、というカードを数えます。数えるのは<b>山に残っている枚数</b>なので、自分の手札とボードに見えているカードは引きます。</p></div></div>
+
+    <div class="og-s"><div class="og-st">2</div><div>
+      <h4>数え方：よく出る5つの形</h4>
+      ${ex("フラッシュドロー", "Ah 5h", "Kh 8h 2c", "Qh Jh Th 9h 7h 6h 4h 3h 2h", 9, "♥は全部で13枚。手札2枚とボード2枚で4枚見えているので、残りは <b>13 − 4 ＝ 9枚</b>")}
+      ${ex("両面ストレートドロー（オープンエンド）", "9s 8d", "7c 6h 2s", "Ts Th Td Tc 5s 5h 5d 5c", 8, "5-6-7-8-9 か 6-7-8-9-T。<b>両端の2種類 × 各4枚 ＝ 8枚</b>")}
+      ${ex("ガットショット（真ん中が抜けている）", "9s 8d", "Jc 7h 2s", "Ts Th Td Tc", 4, "7-8-9-?-J の真ん中のTだけ。<b>1種類 × 4枚 ＝ 4枚</b>。両面の半分なので、追いかける価値もだいたい半分")}
+      ${ex("オーバーカード2枚", "As Kd", "9c 6h 2s", "Ah Ad Ac Ks Kh Kc", 6, "AかKが出ればボードより上のペア。<b>3枚 ＋ 3枚 ＝ 6枚</b>。ただし相手がすでにツーペア以上なら勝てないので、実際は少なめに見る")}
+      ${ex("フラッシュ＋両面（コンボドロー）", "9h 8h", "7h 6c 2h", "Ah Kh Qh Jh Th 5h 4h 3h Ts Td Tc 5s 5d 5c", 15, "フラッシュ9枚 ＋ ストレート8枚 − <b>重なるTh・5hの2枚 ＝ 15枚</b>。重なりを2回数えないのがコツ。今の時点で相手のワンペアより有利なことも多い")}
+    </div></div>
+
+    <div class="og-s"><div class="og-st">3</div><div>
+      <h4>確率に変える：2倍・4倍ルール</h4>
+      <p>山の残りは約46〜47枚なので、<b>アウツ1枚 ≒ 約2%</b>。</p>
+      <div class="og-rule"><div><b>×2</b><span>次の1枚で出る確率<br>（フロップ→ターン、ターン→リバー）</span></div><div><b>×4</b><span>フロップからリバーまでの2枚のどちらかで出る確率</span></div></div>
+      <table class="cm-t"><tr><th>アウツ</th><th>次の1枚（×2）</th><th>リバーまで（×4）</th></tr>${tb}</table>
+      <p class="cm-s">アウツが8枚を超えると×4は大きく出すぎるので、超えた分を1枚につき1%引くとほぼ正確になります（15枚なら60−7＝約53%）</p></div></div>
+
+    <div class="og-s"><div class="og-st">4</div><div>
+      <h4>×2と×4のどちらを使う？</h4>
+      <p><b>相手がオールイン</b>（もう追加のベットがない）なら、リバーまで2枚とも見られるので<b>×4</b>。</p>
+      <p><b>それ以外は×2</b>で考えるのが安全。ターンで外れたら、相手はまたベットしてくるので、2枚見るにはもう一度払う必要があります。</p></div></div>
+
+    <div class="og-s"><div class="og-st">5</div><div>
+      <h4>割り引く：完成しても負けるアウツ</h4>
+      <p>出ても勝てない・むしろ相手が強くなるカードは「汚れたアウツ」。怪しいものは<b>半分くらいに数える</b>のがプロの感覚です。</p>
+      <ul class="og-ul">
+        <li>ボードにペアがある時のフラッシュドロー：相手のフルハウスに負けることがある</li>
+        <li>ストレートが完成するカードが、同時にボードに3枚目の同じマークを出す：相手のフラッシュに負ける</li>
+        <li>オーバーカードのペア：相手がツーペアやセットなら勝てない</li>
+        <li>相手が大きくベット・レイズしている時ほど、相手の手札は強く、アウツは減る</li>
+      </ul></div></div>
+
+    <div class="og-s"><div class="og-st">6</div><div>
+      <h4>使い方：必要勝率と比べるだけ</h4>
+      <div class="og-calc">
+        <p><b>例</b>：ターン。ポット100に相手が50ベット。あなたはフラッシュドロー（9枚）</p>
+        <p>必要勝率 ＝ 50 ÷（100＋50＋50）＝ <b>25%</b></p>
+        <p>引ける確率 ＝ 9 × 2 ＝ <b>約18%</b></p>
+        <p>18% ＜ 25% → <b class="ng">コールは損</b>。ただし完成した時に相手からもっと取れる見込みが大きければ（インプライドオッズ）、少し足りなくてもコールできる</p>
+      </div>
+      <p class="cm-s">ドローの選択肢は3つ：<b>降りる</b>（値段が合わない）・<b>コール</b>（値段が合う）・<b>セミブラフ</b>（自分から打つ。相手が降りても勝ち、コールされても完成すれば勝ち）。アウツが多いほどセミブラフ向き</p></div></div>
+  </div>`;
+}
 function cheatHTML(tab){
-  const tabs = [["bet","ベット額"],["pre","対決（配られた時）"],["post","ドロー・フロップ"],["prob","確率"]];
+  const tabs = [["outs","アウツの考え方"],["bet","ベット額"],["pre","対決（配られた時）"],["post","ドロー・フロップ"],["prob","確率"]];
   let body = "";
   if(tab === "bet"){
     body = `<table class="cm-t"><tr><th>相手のベット</th><th>必要勝率</th><th>MDF</th><th>ブラフ成功に必要</th></tr>
@@ -1491,6 +1572,8 @@ function cheatHTML(tab){
         <p><b>ブラフ成功に必要</b>：自分がこのサイズでブラフする時、相手がこの割合以上降りれば得。ベット ÷（ポット＋ベット）</p>
         <p>リバーで「バリューとブラフをバランスよく混ぜる」なら、ベットの中のブラフの割合は必要勝率と同じ（ポットベットなら3回に1回がブラフ）</p>
       </div>`;
+  }else if(tab === "outs"){
+    body = outsGuideHTML();
   }else if(tab === "pre" || tab === "post"){
     const M = matchups();
     if(tab === "pre"){
@@ -1906,7 +1989,7 @@ function proLinesHTML(){
   const html = `<div class="panel pro">
     <div class="pro-l"><span>位置</span><p>${l1}</p></div>
     <div class="pro-l"><span>相手</span><p>${l2}</p></div>
-    ${l3 ? `<div class="pro-l"><span>見積</span><p>${l3}${rTxt}</p></div>` : ""}
+    ${l3 ? `<div class="pro-l"><span>見積</span><p>${l3}${rTxt}${/アウツ/.test(l3) ? ` <a class="pro-a" onclick="Practice.cheat('outs')">アウツとは</a>` : ""}</p></div>` : ""}
     <div class="pro-l"><span>値段</span><p>${l4}</p></div>
     <div class="pro-c ${cls}"><b>${esc(a.rec.label)}</b><span>${short}</span></div>
     ${exact}
@@ -2567,7 +2650,7 @@ window.Practice = {
   reveal(v){ ui.reveal = v; render(); },
   toggleLog(){ ui.showLog = !ui.showLog; render(); },
   toggleReview(){ ui.review = !ui.review; render(); },
-  cheat(tab){ openModal(cheatHTML(tab || "bet")); },
+  cheat(tab){ css(); openModal(cheatHTML(tab || "bet")); },
   qAns,
   toggleDetail(){ ui.detail = !ui.detail; render(); },
   toggleThink(){ ui.think = ui.think === false ? true : false; render(); },
