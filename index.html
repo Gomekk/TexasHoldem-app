@@ -214,10 +214,9 @@ body.spectating .panel{border-color:#3b2a5c}
 .logo .r{color:var(--h)}.logo .bl{color:#6aa6ff}.logo .g{color:#3ddc97}
 .gate h1{font-size:30px;font-weight:900;letter-spacing:.12em}
 .gate p{color:var(--sub);font-size:14px;line-height:1.6}
-.gate-rg{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
-.gate-rg .btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 6px}
-.gate-rg .btn b{font-size:14px}
-.gate-rg .btn small{font-size:11px;color:var(--sub);font-weight:600}
+.ver{text-align:center;font-size:10px;color:var(--sub);opacity:.35;margin-top:14px;padding:6px;cursor:default;user-select:none;-webkit-user-select:none}
+.tools{display:grid;gap:8px}
+.tools .btn{font-size:13px;padding:10px}
 
 /* modal */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:50}
@@ -441,13 +440,6 @@ function gateHTML(){
     <div class="row"><input class="in" id="codeIn" onkeydown="if(event.key==='Enter')joinCode(this.value)" placeholder="コードを手入力" autocapitalize="characters" autocomplete="off">
       <button class="btn" style="flex:0 0 80px" onclick="joinCode($('#codeIn').value)">参加</button></div>
     <button class="btn ghost" onclick="openHost()">ホストとして今日の部屋を開く</button>
-    <button class="btn" onclick="Practice.open('gate')">1人で練習（CPU対戦）</button>
-    <div class="gate-rg">
-      <button class="btn" onclick="Practice.browser('open')"><b>オープンレンジ</b><small>最初に入る時</small></button>
-      <button class="btn" onclick="Practice.browser('def')"><b>レイズを受けた時</b><small>コール・3ベット</small></button>
-      <button class="btn" onclick="Practice.browser('post')"><b>フロップ以降</b><small>手札の強さ5分類</small></button>
-      <button class="btn" onclick="Practice.cheat('outs')"><b>アウツの考え方</b><small>数え方・確率・使い方</small></button>
-    </div>
   </div>`;
 }
 async function joinCode(code){
@@ -1121,12 +1113,22 @@ function openMenu(){
   openModal(`<h2>メニュー<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
     <div style="display:grid;gap:10px">
       <button class="btn big" onclick="showQR()">参加用QRを表示（途中参加の人へ）</button>
-      <button class="btn big" onclick="closeModal();Practice.open('main')">1人で練習（CPU対戦）</button>
-      <button class="btn big" onclick="Practice.browser('open')">レンジ表</button>
       <button class="btn big" onclick="closeModal();act('poker_sitout',{p_on:${!S.sitting_out}})">${S.sitting_out ? "観戦をやめる" : "観戦モードにする（しばらく抜ける）"}</button>
       ${S.owner ? `<button class="btn big" onclick="openAdmin()">プレイヤー管理（オーナー）</button>
       <button class="btn big" onclick="closeModal();switchPlayer()">代理で操作するプレイヤーを選ぶ</button>` : ""}
       <button class="btn big danger" onclick="closeModal();logout()">ログアウト</button>
+    </div>
+    ${S.owner ? `<div class="ver" onclick="openTools()">ver 1.0</div>` : ""}`);
+}
+// ホストだけが開ける道具箱（メニュー最下部の目立たない表示から）
+function openTools(){
+  openModal(`<h2>ver 1.0<span class="sp"></span><button class="x" onclick="closeModal()">✕</button></h2>
+    <div class="tools">
+      <button class="btn" onclick="closeModal();Practice.open('main')">1人で練習</button>
+      <button class="btn" onclick="Practice.browser('open')">オープンレンジ</button>
+      <button class="btn" onclick="Practice.browser('def')">レイズを受けた時</button>
+      <button class="btn" onclick="Practice.browser('post')">フロップ以降</button>
+      <button class="btn" onclick="Practice.cheat('outs')">アウツの考え方</button>
     </div>`);
 }
 function showQR(){
